@@ -16,13 +16,16 @@ interface NavItem {
   roles: string[]
 }
 
+// Each role sees only the nav items in its own row.
+// Internal team gets a trimmed list pointing to their dedicated routes.
 const navItems: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['super_admin'] },
-  { label: 'Trades', href: '/trades', icon: FolderOpen, roles: ['super_admin', 'internal'] },
-  { label: 'New Contract', href: '/contracts/new', icon: Plus, roles: ['super_admin'] },
-  { label: 'Clients', href: '/clients', icon: Users, roles: ['super_admin'] },
-  { label: 'Contacts', href: '/contacts', icon: UserCircle, roles: ['super_admin'] },
-  { label: 'Settings', href: '/settings', icon: Settings, roles: ['super_admin'] },
+  { label: 'Dashboard',    href: '/dashboard',       icon: LayoutDashboard, roles: ['super_admin'] },
+  { label: 'Trades',       href: '/trades',          icon: FolderOpen,      roles: ['super_admin'] },
+  { label: 'Trades',       href: '/internal/trades', icon: FolderOpen,      roles: ['internal'] },
+  { label: 'New Contract', href: '/contracts/new',   icon: Plus,            roles: ['super_admin'] },
+  { label: 'Clients',      href: '/clients',         icon: Users,           roles: ['super_admin', 'internal'] },
+  { label: 'Contacts',     href: '/contacts',        icon: UserCircle,      roles: ['super_admin'] },
+  { label: 'Settings',     href: '/settings',        icon: Settings,        roles: ['super_admin'] },
 ]
 
 export function AppLayout() {
@@ -125,18 +128,30 @@ export function AppLayout() {
           </button>
           <div className="flex-1" />
           <div className="flex items-center gap-3">
-            {/* Notifications */}
-            <Link
-              to="/settings"
-              className="relative rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-            >
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </Link>
+            {/* Notifications — only super_admin has Settings access; for
+                internal users we just render the badge with no link. */}
+            {role === 'super_admin' ? (
+              <Link
+                to="/settings"
+                className="relative rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+            ) : (
+              <div className="relative rounded-lg p-2 text-gray-400">
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* User menu */}
             <DropdownMenu.Root>
@@ -159,16 +174,20 @@ export function AppLayout() {
                     <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
                     <p className="text-xs text-gray-500">{user?.email}</p>
                   </div>
-                  <DropdownMenu.Item asChild>
-                    <Link
-                      to="/settings"
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-                    >
-                      <Settings className="h-4 w-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Separator className="my-1 h-px bg-gray-100" />
+                  {role === 'super_admin' && (
+                    <>
+                      <DropdownMenu.Item asChild>
+                        <Link
+                          to="/settings"
+                          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
+                          <Settings className="h-4 w-4" />
+                          Settings
+                        </Link>
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Separator className="my-1 h-px bg-gray-100" />
+                    </>
+                  )}
                   <DropdownMenu.Item
                     onSelect={() => void handleLogout()}
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer outline-none select-none"

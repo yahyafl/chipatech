@@ -50,17 +50,15 @@ const COORDS = {
   totalAmount:  { x: 510, y: 525, w: 70, h: 11 },
   grandTotal:   { x: 510, y: 485, w: 70, h: 11 },
 
-  // ── Specs block (Brand/Validity/etc don't change; only ship/origin/dest)
-  shipmentsDate: { x: 130, y: 252, w: 165, h: 11 },
-  origin:        { x: 130, y: 240, w: 165, h: 11 },
-  destination:   { x: 130, y: 228, w: 165, h: 11 },
+  // ── Specs block — Brand/Validity/Temperature/Packing/Shipment/Origin/
+  //    Destination/FreightCondition are PURE MIRROR per spec §7.2.
+  //    Only Prepayment + Balance get rewritten with new amounts.
   prepaymentCondition: { x: 130, y: 216, w: 175, h: 11 },
   balanceCondition:    { x: 130, y: 204, w: 175, h: 11 },
 
-  // ── Costs (right-side specs row) ──────────────────────────────────────
-  freightCost:      { x: 405, y: 252, w: 65, h: 11 },
-  insuranceCost:    { x: 405, y: 240, w: 65, h: 11 },
-  freightCondition: { x: 405, y: 228, w: 130, h: 11 },
+  // ── Costs (right-side specs row) — admin-input only ───────────────────
+  freightCost:   { x: 405, y: 252, w: 65, h: 11 },
+  insuranceCost: { x: 405, y: 240, w: 65, h: 11 },
 
   // ── Banking block ─────────────────────────────────────────────────────
   intermediaryBankName:  { x: 130, y: 156, w: 175, h: 11 },
@@ -140,29 +138,24 @@ export async function generateMirroredContract(
     { coord: 'contactPhone',  value: data.contactPhone },
     { coord: 'contactEmail',  value: data.contactEmail },
 
-    // Payer (mirrors buyer)
+    // Payer — name mirrors the buyer, but the two "country of origin"
+    // fields come from the Active Entity profile (per spec §7.2).
     { coord: 'payerName',     value: data.clientName },
-    { coord: 'payerCountry',  value: data.clientCountry },
-    { coord: 'payerCountry2', value: data.clientCountry },
+    { coord: 'payerCountry',  value: data.entityCountry },
+    { coord: 'payerCountry2', value: data.entityCountry },
 
     // Prices
     { coord: 'unitaryPrice', value: `USD ${formatCurrencyPDF(data.saleUnitPrice)}`, bold: true },
     { coord: 'totalAmount',  value: `USD ${formatCurrencyPDF(data.saleTotal)}`,     bold: true },
     { coord: 'grandTotal',   value: `USD ${formatCurrencyPDF(data.saleTotal)}`,     bold: true },
 
-    // Shipment / route — data the wizard captures
-    { coord: 'shipmentsDate', value: data.shipmentsDate ?? '' },
-    { coord: 'origin',        value: data.origin ?? '' },
-    { coord: 'destination',   value: data.destination ?? '' },
-
-    // Payment terms
+    // Payment terms — recalculated from new sale total
     { coord: 'prepaymentCondition', value: prepaymentText },
     { coord: 'balanceCondition',    value: balanceText },
 
-    // Costs + freight condition (right-side specs)
-    { coord: 'freightCost',      value: data.freightCost   > 0 ? formatCurrencyPDF(data.freightCost)   : '0.00' },
-    { coord: 'insuranceCost',    value: data.insuranceCost > 0 ? formatCurrencyPDF(data.insuranceCost) : '0.00' },
-    { coord: 'freightCondition', value: data.freightCondition ?? '' },
+    // Costs — admin-input fields only
+    { coord: 'freightCost',   value: data.freightCost   > 0 ? formatCurrencyPDF(data.freightCost)   : '0.00' },
+    { coord: 'insuranceCost', value: data.insuranceCost > 0 ? formatCurrencyPDF(data.insuranceCost) : '0.00' },
 
     // Banking
     { coord: 'intermediaryBankName',  value: data.intermediaryBankName },

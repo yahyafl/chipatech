@@ -117,28 +117,41 @@ export default function App() {
                   </RoleGuard>
                 } />
 
-                {/* Trades */}
-                <Route path="/trades" element={<TradeList />} />
-                <Route path="/trades/:id" element={<TradeDetail />} />
-                <Route path="/trades/:id/folder" element={<TradeFolder />} />
+                {/* Trades — SuperAdmin only (financials visible).
+                    Internal users use /internal/trades instead. */}
+                <Route path="/trades" element={
+                  <RoleGuard allowedRoles={['super_admin']} redirectTo="/internal/trades">
+                    <TradeList />
+                  </RoleGuard>
+                } />
+                <Route path="/trades/:id" element={
+                  <RoleGuard allowedRoles={['super_admin']} redirectTo="/internal/trades">
+                    <TradeDetail />
+                  </RoleGuard>
+                } />
+                <Route path="/trades/:id/folder" element={
+                  <RoleGuard allowedRoles={['super_admin']} redirectTo="/internal/trades">
+                    <TradeFolder />
+                  </RoleGuard>
+                } />
 
                 {/* Contracts — SuperAdmin only */}
                 <Route path="/contracts/new" element={
-                  <RoleGuard allowedRoles={['super_admin']} redirectTo="/trades">
+                  <RoleGuard allowedRoles={['super_admin']} redirectTo="/internal/trades">
                     <ContractWizard />
                   </RoleGuard>
                 } />
 
-                {/* Clients — SuperAdmin only */}
+                {/* Clients — SuperAdmin (full) + Internal (view-only) */}
                 <Route path="/clients" element={
-                  <RoleGuard allowedRoles={['super_admin']} redirectTo="/trades">
+                  <RoleGuard allowedRoles={['super_admin', 'internal']}>
                     <ClientList />
                   </RoleGuard>
                 } />
 
                 {/* Contacts — SuperAdmin only */}
                 <Route path="/contacts" element={
-                  <RoleGuard allowedRoles={['super_admin']} redirectTo="/trades">
+                  <RoleGuard allowedRoles={['super_admin']} redirectTo="/internal/trades">
                     <ContactList />
                   </RoleGuard>
                 } />

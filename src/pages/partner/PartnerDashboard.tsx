@@ -13,12 +13,12 @@ export default function PartnerDashboard() {
   const { data: kpis, isLoading: kpisLoading } = useKPIs()
   const { data: trades, isLoading: tradesLoading } = useRecentTrades()
 
+  // Frigo purchase price is SuperAdmin-only per spec §9.1 — not shown here.
   const columns: Column<Trade>[] = [
     { key: 'trade_reference', header: 'Trade Ref', render: (row) => <span className="font-mono font-semibold text-brand-600">{row.trade_reference}</span> },
     { key: 'client', header: 'Client', render: (row) => row.client?.company_name ?? '—' },
     { key: 'entity', header: 'Entity', render: (row) => <span className="text-xs">{row.entity?.name ?? '—'}</span> },
     { key: 'contract_date', header: 'Date', render: (row) => formatDate(row.contract_date) },
-    { key: 'frigo_total', header: 'Investment', render: (row) => formatCurrency(row.frigo_total) },
     { key: 'sale_total', header: 'Sale Total', render: (row) => formatCurrency(row.sale_total) },
     { key: 'net_profit', header: 'Net Profit', render: (row) => <span className={row.net_profit >= 0 ? 'font-semibold text-green-700' : 'font-semibold text-red-700'}>{formatCurrency(row.net_profit)}</span> },
     { key: 'trade_status', header: 'Status', render: (row) => <StatusBadge status={row.trade_status} /> },
@@ -36,7 +36,7 @@ export default function PartnerDashboard() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <KPICard title="Total Trades" value={kpis?.totalTrades ?? 0} icon={Package} color="blue" />
-          <KPICard title="Invested Capital" value={formatCurrency(kpis?.totalInvestedCapital ?? 0)} icon={DollarSign} color="purple" />
+          <KPICard title="Total Sale Volume" value={formatCurrency(kpis?.totalRevenue ?? 0)} icon={DollarSign} color="purple" />
           <KPICard title="Total Net Profit" value={formatCurrency(kpis?.totalNetProfit ?? 0)} icon={TrendingUp} color="green" />
           <KPICard title="Active Trades" value={kpis?.activeTrades ?? 0} icon={Activity} color="yellow" />
           <KPICard title="Overdue Alerts" value={kpis?.overdueAlerts ?? 0} icon={AlertCircle} color={kpis?.overdueAlerts ? 'red' : 'gray'} />

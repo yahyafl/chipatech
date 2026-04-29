@@ -30,13 +30,18 @@ export default function PartnerTradeDetail() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
-          {/* Financial Breakdown */}
+          {/* Financial Breakdown — Frigo Purchase Price is SuperAdmin-only
+              per spec §9.1, so it's intentionally NOT shown here. */}
           <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-6">
             <h2 className="font-semibold text-gray-900 mb-4">Financial Breakdown</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between py-1.5 border-b border-gray-100">
-                <span className="text-gray-600">Investment (Frigo Purchase)</span>
-                <span className="font-medium">{formatCurrency(trade.frigo_total)}</span>
+                <span className="text-gray-600">Sale Price / Unit</span>
+                <span className="font-medium">{formatCurrency(trade.sale_unit_price)}</span>
+              </div>
+              <div className="flex justify-between py-1.5 border-b border-gray-100">
+                <span className="text-gray-600">Sale Total</span>
+                <span className="font-medium">{formatCurrency(trade.sale_total)}</span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-gray-100">
                 <span className="text-gray-600">+ Shipping Cost</span>
@@ -53,10 +58,6 @@ export default function PartnerTradeDetail() {
               <div className="flex justify-between py-1.5 border-b border-gray-200">
                 <span className="font-medium text-gray-700">Total Costs</span>
                 <span className="font-semibold">{formatCurrency(trade.total_costs)}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-gray-100">
-                <span className="text-gray-600">Sale Total</span>
-                <span className="font-medium">{formatCurrency(trade.sale_total)}</span>
               </div>
               <div className="flex justify-between py-2 mt-1 rounded-lg bg-gray-50 px-3">
                 <span className="font-semibold text-gray-800">Net Profit</span>

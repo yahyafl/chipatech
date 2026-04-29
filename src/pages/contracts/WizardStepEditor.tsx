@@ -91,6 +91,15 @@ export function WizardStepEditor({ initialData, onComplete, onBack }: Props) {
             <FormField label="Acting Entity Name" required>
               <Input {...register('entityName')} />
             </FormField>
+            <FormField label="Entity RUC / EIN">
+              <Input {...register('entityRucEin')} />
+            </FormField>
+            <FormField label="Entity Address" className="col-span-2">
+              <Input {...register('entityAddress')} />
+            </FormField>
+            <FormField label="Entity City">
+              <Input {...register('entityCity')} />
+            </FormField>
             <FormField label="Entity Country">
               <Input {...register('entityCountry')} />
             </FormField>
@@ -206,6 +215,17 @@ export function WizardStepEditor({ initialData, onComplete, onBack }: Props) {
               <Input {...register('beneficiaryAddress')} />
             </FormField>
           </div>
+        </Section>
+
+        <Section title="G — Observations">
+          <FormField label="Observations / Obs Clause" hint="Free-text notes attached to the contract footer">
+            <textarea
+              {...register('observations')}
+              rows={4}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none resize-y"
+              placeholder="Optional contract notes..."
+            />
+          </FormField>
         </Section>
       </form>
 

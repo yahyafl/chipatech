@@ -129,9 +129,19 @@ export function useMarkMilestoneReceived() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, milestone }: { id: string; milestone: 'advance' | 'balance' }) => {
+      // Per spec §10.3, marking a payment received also advances the trade
+      // through its status timeline (active → advance_received → balance_received).
       const field = milestone === 'advance'
-        ? { advance_status: 'received' as MilestoneStatus, advance_received_at: new Date().toISOString() }
-        : { balance_status: 'received' as MilestoneStatus, balance_received_at: new Date().toISOString() }
+        ? {
+            advance_status: 'received' as MilestoneStatus,
+            advance_received_at: new Date().toISOString(),
+            trade_status: 'advance_received' as TradeStatus,
+          }
+        : {
+            balance_status: 'received' as MilestoneStatus,
+            balance_received_at: new Date().toISOString(),
+            trade_status: 'balance_received' as TradeStatus,
+          }
       const { error } = await supabase
         .from('trades')
         .update({ ...field, updated_at: new Date().toISOString() })

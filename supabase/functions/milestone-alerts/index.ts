@@ -1,4 +1,7 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+// @ts-expect-error — Deno-only import resolved at runtime by the edge runtime
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
+
+declare const Deno: { env: { get(name: string): string | undefined }; serve(handler: (req: Request) => Response | Promise<Response>): void }
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -6,23 +9,36 @@ const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
+// Resend "from" address.
+// - Sandbox mode (default): `onboarding@resend.dev` — works without a verified
+//   domain, but Resend will ONLY deliver to the email registered on the Resend
+//   account. Fine while there's a single super_admin.
+// - Production mode: change to `alerts@<your-verified-domain>` once a domain
+//   is verified at https://resend.com/domains.
+const FROM_ADDRESS = Deno.env.get('RESEND_FROM') ?? 'TradeMirror Alerts <onboarding@resend.dev>'
+
 async function sendEmail(to: string, subject: string, html: string) {
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: 'TradeMirror Alerts <alerts@chipafarm.com>',
-      to,
-      subject,
-      html,
-    }),
-  })
-  if (!res.ok) {
-    const err = await res.text()
-    console.error('Resend error:', err)
+  // Best-effort: never throw. Status-flip + audit logging must succeed even
+  // if Resend is misconfigured or the recipient isn't allow-listed.
+  try {
+    if (!RESEND_API_KEY) {
+      console.warn('[milestone-alerts] RESEND_API_KEY not set — skipping email')
+      return
+    }
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from: FROM_ADDRESS, to, subject, html }),
+    })
+    if (!res.ok) {
+      const err = await res.text()
+      console.error('[milestone-alerts] Resend error:', res.status, err)
+    }
+  } catch (err) {
+    console.error('[milestone-alerts] sendEmail threw:', err)
   }
 }
 
@@ -90,7 +106,7 @@ function buildEmailHtml(params: {
 </html>`
 }
 
-Deno.serve(async (_req) => {
+Deno.serve(async (_req: Request) => {
   try {
     const now = new Date()
 
@@ -108,11 +124,13 @@ Deno.serve(async (_req) => {
 
     let alertsSent = 0
 
-    // --- Advance overdue: signing_date + 7 days < now AND advance_status = 'pending'
+    // --- Advance overdue: signing_date + 7 days < now AND status not 'received'.
+    // Per spec §11.1 alerts repeat daily until the milestone is marked
+    // received, so we include both 'pending' and already-flipped 'overdue'.
     const { data: advanceOverdue } = await supabase
       .from('trades')
-      .select('id, trade_reference, sale_total, signing_date, clients(company_name)')
-      .eq('advance_status', 'pending')
+      .select('id, trade_reference, sale_total, signing_date, advance_status, clients(company_name)')
+      .in('advance_status', ['pending', 'overdue'])
       .not('signing_date', 'is', null)
       .lt('signing_date', new Date(now.getTime() - 7 * 86400000).toISOString().split('T')[0])
 
@@ -156,11 +174,12 @@ Deno.serve(async (_req) => {
       alertsSent++
     }
 
-    // --- Balance overdue: bol_date + 7 days < now AND balance_status = 'pending'
+    // --- Balance overdue: bol_date + 7 days < now AND status not 'received'.
+    // Per spec §11.1, alerts repeat daily until the milestone is received.
     const { data: balanceOverdue } = await supabase
       .from('trades')
-      .select('id, trade_reference, sale_total, bol_date, clients(company_name)')
-      .eq('balance_status', 'pending')
+      .select('id, trade_reference, sale_total, bol_date, balance_status, clients(company_name)')
+      .in('balance_status', ['pending', 'overdue'])
       .not('bol_date', 'is', null)
       .lt('bol_date', new Date(now.getTime() - 7 * 86400000).toISOString().split('T')[0])
 
