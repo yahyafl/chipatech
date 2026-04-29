@@ -213,11 +213,13 @@ export interface ContractGenerationData {
   frigoContractRef: string
   quantityTons: number
   productDescription: string
+  frigoUnitPrice: number
   frigoTotal: number
   saleUnitPrice: number
   saleTotal: number
   freightCost: number
   insuranceCost: number
+  bankFees: number
   prepaymentDate: string
   prepaymentAmount: number
   balanceAmount: number

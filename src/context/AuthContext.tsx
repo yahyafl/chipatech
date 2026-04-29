@@ -71,7 +71,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (cachedNow && cachedNow.id === supabaseUser.id) {
       setUser(cachedNow)
       setRole(cachedNow.role)
-      void supabase.from('users').update({ last_login_at: new Date().toISOString() }).eq('id', supabaseUser.id)
+      // Best-effort last_login_at update. Log failures so we can spot
+      // RLS / network issues — silent skip was masking real problems
+      // (logic-test report F-P2-5).
+      void supabase
+        .from('users')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('id', supabaseUser.id)
+        .then(({ error }) => {
+          if (error) console.warn('[auth] last_login_at update failed:', error.message)
+        })
       return
     }
 
@@ -183,6 +192,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     writeCachedUser(null)
+    // Wipe every cached trade/financial blob from localStorage so no
+    // financial data lingers after logout (logic-test report F-P2-4).
+    try {
+      const keys = Object.keys(localStorage)
+      for (const k of keys) {
+        if (k.startsWith('tm_')) localStorage.removeItem(k)
+      }
+    } catch { /* private mode / quota */ }
     setUser(null)
     setRole(null)
     setSession(null)

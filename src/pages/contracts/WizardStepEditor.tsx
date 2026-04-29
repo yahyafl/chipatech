@@ -27,6 +27,7 @@ export function WizardStepEditor({ initialData, onComplete, onBack }: Props) {
   const saleUnitPrice = watch('saleUnitPrice')
   const freightCost = watch('freightCost')
   const insuranceCost = watch('insuranceCost')
+  const bankFees = watch('bankFees')
   const quantityTons = watch('quantityTons')
 
   useEffect(() => {
@@ -34,7 +35,8 @@ export function WizardStepEditor({ initialData, onComplete, onBack }: Props) {
     const price = Number(saleUnitPrice) || 0
     const freight = Number(freightCost) || 0
     const insurance = Number(insuranceCost) || 0
-    const calc = calculateFinancials(qty, price, initialData.frigoTotal || 0, freight, insurance, 0)
+    const fees = Number(bankFees) || 0
+    const calc = calculateFinancials(qty, price, initialData.frigoTotal || 0, freight, insurance, fees)
     setFinancials({
       saleTotal: calc.saleTotal,
       prepaymentAmount: calc.prepaymentAmount,
@@ -43,7 +45,7 @@ export function WizardStepEditor({ initialData, onComplete, onBack }: Props) {
     setValue('saleTotal', calc.saleTotal)
     setValue('prepaymentAmount', calc.prepaymentAmount)
     setValue('balanceAmount', calc.balanceAmount)
-  }, [saleUnitPrice, freightCost, insuranceCost, quantityTons, initialData.frigoTotal, setValue])
+  }, [saleUnitPrice, freightCost, insuranceCost, bankFees, quantityTons, initialData.frigoTotal, setValue])
 
   const toggleLock = (field: string) => {
     setUnlockedFields((prev) => {
@@ -151,6 +153,11 @@ export function WizardStepEditor({ initialData, onComplete, onBack }: Props) {
           <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
             <strong>Product:</strong> {initialData.productDescription}
           </div>
+          {(!initialData.frigoUnitPrice || initialData.frigoUnitPrice === 0) && initialData.frigoTotal > 0 && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <strong>Heads up:</strong> the parser couldn't read the Frigo unit price from the source PDF. The trade will derive it as <code>frigo_total ÷ quantity = {formatCurrency(initialData.frigoTotal / Math.max(initialData.quantityTons, 1))}</code>. Verify this matches the source contract before downloading.
+            </div>
+          )}
         </Section>
 
         <Section title="C — Cargo Specs (Pure Mirror — Locked)">
@@ -181,12 +188,15 @@ export function WizardStepEditor({ initialData, onComplete, onBack }: Props) {
         </Section>
 
         <Section title="E — Costs">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <FormField label="Freight Cost (USD)">
               <Input type="number" step="0.01" min="0" {...register('freightCost', { valueAsNumber: true })} />
             </FormField>
             <FormField label="Insurance Cost (USD)">
               <Input type="number" step="0.01" min="0" {...register('insuranceCost', { valueAsNumber: true })} />
+            </FormField>
+            <FormField label="Bank Fees (USD)" hint="Wire transfer / intermediary fees">
+              <Input type="number" step="0.01" min="0" {...register('bankFees', { valueAsNumber: true })} />
             </FormField>
           </div>
         </Section>

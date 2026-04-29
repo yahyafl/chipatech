@@ -63,6 +63,27 @@ function parseNumber(text: string, patterns: RegExp[]): number {
   return isNaN(num) ? 0 : num
 }
 
+export class NotAFrigoContractError extends Error {
+  constructor() {
+    super(
+      'This PDF does not look like a Frigorífico Concepción contract. ' +
+      'The Mirroring Engine only accepts Frigo purchase contracts as input. ' +
+      'Please upload the original Frigo contract PDF.'
+    )
+    this.name = 'NotAFrigoContractError'
+  }
+}
+
+// Anchor strings every genuine Frigo contract must contain. If at least
+// two of these are present we accept the file as a Frigo template.
+const FRIGO_ANCHORS = [
+  /FRIGORIFICO\s+CONCEPCION/i,
+  /Contract\s+No\.?\s*[:.]?\s*\d+\/\d{4}/i,
+  /(BENEFICIARY'?S\s+BANK|Beneficiary's Bank)/i,
+  /Plant\s+No\.?\s*[:.]?\s*\d+/i,
+  /BANCO\s+NACIONAL\s+DE\s+FOMENTO|CITIBANK\s+NA/i,
+]
+
 export async function extractContractData(file: File): Promise<ExtractedContract> {
   const buffer = await file.arrayBuffer()
   const rawText = extractRawText(buffer)
@@ -71,6 +92,12 @@ export async function extractContractData(file: File): Promise<ExtractedContract
   const decoder2 = new TextDecoder('utf-8', { fatal: false })
   const utf8Text = decoder2.decode(buffer)
   const combined = rawText + ' ' + utf8Text
+
+  // Reject anything that isn't a Frigo template. Without this any PDF
+  // (including the PRD spec doc itself) silently advances and produces
+  // garbage values in the editor — see logic-test report F-P0-3.
+  const anchorsHit = FRIGO_ANCHORS.filter(rx => rx.test(combined)).length
+  if (anchorsHit < 2) throw new NotAFrigoContractError()
 
   let confidence: 'high' | 'medium' | 'low' = 'high'
 
@@ -116,9 +143,11 @@ export async function extractContractData(file: File): Promise<ExtractedContract
     /FROZEN[\s-]+18[°°]/i,
   ]) || 'FROZEN -18° C'
 
+  // Use European decimal comma (Frigo's locale) for the synthesized
+  // fallback so PURE MIRROR comparison stays byte-identical to source.
   const packing = parseField(combined, [
     /Packing[\s\S]{0,50}?(CONTAINER[^,\n)]{0,60})/i,
-  ]) || `CONTAINER WITH ${quantityTons.toFixed(2)} TONS`
+  ]) || `CONTAINER WITH ${quantityTons.toFixed(2).replace('.', ',')} TONS`
 
   const plantNo = parseField(combined, [
     /Plant No\.?\s*[:.]?\s*(\d+)/i,

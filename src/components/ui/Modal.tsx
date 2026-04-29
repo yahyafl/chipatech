@@ -20,11 +20,17 @@ const sizeClasses = {
 }
 
 export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: ModalProps) {
+  // Stable id pair for accessibility — Radix needs aria-describedby to
+  // resolve to a real element or be undefined; passing undefined when no
+  // description exists silences the runtime warning.
+  const descriptionId = description ? `modal-description-${title.toLowerCase().replace(/\s+/g, '-')}` : undefined
+
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <Dialog.Content
+          aria-describedby={descriptionId}
           className={cn(
             'fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2',
             'flex flex-col max-h-[92vh] rounded-xl bg-white shadow-xl',
@@ -42,7 +48,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
             <div>
               <Dialog.Title className="text-lg font-semibold text-gray-900">{title}</Dialog.Title>
               {description && (
-                <Dialog.Description className="mt-1 text-sm text-gray-500">{description}</Dialog.Description>
+                <Dialog.Description id={descriptionId} className="mt-1 text-sm text-gray-500">{description}</Dialog.Description>
               )}
             </div>
             <Dialog.Close asChild>

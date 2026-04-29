@@ -34,12 +34,14 @@ export function PageHeader({ title, subtitle, breadcrumbs, actions, className }:
           ))}
         </nav>
       )}
-      <div className="flex items-start justify-between">
-        <div>
+      {/* Stack on small screens so the action button doesn't overlap the
+          heading at narrow widths (≤480px). Side-by-side from sm: up. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
           {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
         </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
     </div>
   )

@@ -34,9 +34,10 @@ export function WizardStepDownload({ contractData, generatedPdf, sourceFile, onD
         const num = String((count ?? 0) + 1).padStart(3, '0')
         const trade_reference = `CF-${year}-${num}`
 
+        const totalAddedCosts = contractData.freightCost + contractData.insuranceCost + (contractData.bankFees ?? 0)
         const finances = {
-          total_costs: contractData.frigoTotal + contractData.freightCost + contractData.insuranceCost,
-          net_profit: contractData.saleTotal - (contractData.frigoTotal + contractData.freightCost + contractData.insuranceCost),
+          total_costs: contractData.frigoTotal + totalAddedCosts,
+          net_profit: contractData.saleTotal - (contractData.frigoTotal + totalAddedCosts),
         }
 
         const { data: trade, error: tradeError } = await supabase.from('trades').insert({
@@ -49,13 +50,17 @@ export function WizardStepDownload({ contractData, generatedPdf, sourceFile, onD
           frigo_contract_ref: contractData.frigoContractRef,
           quantity_tons: contractData.quantityTons,
           product_description: contractData.productDescription,
-          frigo_unit_price: 0,
+          // Persist the parsed unit price so the §9.1 invariant
+          // `frigo_total = quantity × frigo_unit_price` holds. If the
+          // parser couldn't read it, derive it from total ÷ quantity.
+          frigo_unit_price: contractData.frigoUnitPrice
+            || (contractData.quantityTons > 0 ? contractData.frigoTotal / contractData.quantityTons : 0),
           frigo_total: contractData.frigoTotal || 0,
           sale_unit_price: contractData.saleUnitPrice,
           sale_total: contractData.saleTotal,
           shipping_cost: contractData.freightCost,
           insurance_cost: contractData.insuranceCost,
-          bank_fees: 0,
+          bank_fees: contractData.bankFees ?? 0,
           total_costs: finances.total_costs,
           net_profit: finances.net_profit,
           advance_status: 'pending',
