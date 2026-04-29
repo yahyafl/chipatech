@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { UserPlus, Pencil, Power } from 'lucide-react'
+import { UserPlus, Pencil, Power, Trash2 } from 'lucide-react'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Modal } from '@/components/ui/Modal'
 import { FormField, Input, Select } from '@/components/ui/FormField'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { useUsers, useInviteUser, useUpdateUserRole, useDeactivateUser, useReactivateUser } from '@/hooks/useUsers'
+import { useUsers, useInviteUser, useUpdateUserRole, useDeactivateUser, useReactivateUser, useDeleteUser } from '@/hooks/useUsers'
 import { useAuth } from '@/context/AuthContext'
 import { inviteUserSchema, type InviteUserFormData, type User, type UserRole } from '@/types'
 import { formatDate, timeAgo } from '@/lib/utils'
@@ -20,8 +20,10 @@ export default function UserManagement() {
   const { mutate: updateRole, isPending: updatingRole } = useUpdateUserRole()
   const { mutate: deactivate, isPending: deactivating } = useDeactivateUser()
   const { mutate: reactivate, isPending: reactivating } = useReactivateUser()
+  const { mutate: deleteUser, isPending: deleting } = useDeleteUser()
   const [showInvite, setShowInvite] = useState(false)
   const [deactivateTarget, setDeactivateTarget] = useState<User | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
   const [editTarget, setEditTarget] = useState<User | null>(null)
   const [newRole, setNewRole] = useState<UserRole>('internal')
 
@@ -82,6 +84,13 @@ export default function UserManagement() {
               title={row.is_active ? 'Deactivate' : 'Reactivate'}
             >
               <Power className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setDeleteTarget(row)}
+              className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+              title="Delete permanently"
+            >
+              <Trash2 className="h-4 w-4" />
             </button>
           </div>
         )
@@ -177,6 +186,20 @@ export default function UserManagement() {
         confirmLabel={deactivateTarget?.is_active ? 'Deactivate' : 'Reactivate'}
         isLoading={deactivating || reactivating}
         variant={deactivateTarget?.is_active ? 'danger' : 'warning'}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return
+          deleteUser(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) })
+        }}
+        title="Delete user permanently"
+        description={`This will permanently delete ${deleteTarget?.full_name} (${deleteTarget?.email}) and remove their access. This cannot be undone.`}
+        confirmLabel="Delete permanently"
+        isLoading={deleting}
+        variant="danger"
       />
     </div>
   )

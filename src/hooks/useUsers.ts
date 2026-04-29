@@ -84,3 +84,24 @@ export function useReactivateUser() {
     },
   })
 }
+
+export function useDeleteUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (user_id: string) => {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id },
+      })
+      if (error) throw new Error(error.message ?? 'Delete failed')
+      if (data?.error) throw new Error(data.error)
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] })
+      toast.success('User deleted')
+    },
+    onError: (err: Error) => {
+      toast.error(err.message)
+    },
+  })
+}

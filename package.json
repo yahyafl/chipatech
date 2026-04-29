@@ -8,8 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "functions:deploy": "npx supabase functions deploy invite-user milestone-alerts",
-    "functions:deploy:invite": "npx supabase functions deploy invite-user"
+    "functions:deploy": "npx supabase functions deploy invite-user delete-user milestone-alerts",
+    "functions:deploy:invite": "npx supabase functions deploy invite-user",
+    "functions:deploy:delete": "npx supabase functions deploy delete-user"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
