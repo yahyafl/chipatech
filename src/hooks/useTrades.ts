@@ -1,11 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { readCache, writeCache } from '@/lib/localCache'
+import { useAuth } from '@/context/AuthContext'
 import toast from 'react-hot-toast'
 import type { Trade, TradeFilters, TradeStatus, MilestoneStatus } from '@/types'
 
 const CACHE_TTL = 5 * 60 * 1000
 
+// Full select for super_admin / partner — includes financial columns and
+// every join. Internal Team uses TRADE_SELECT_BASIC instead, which hits
+// the trades_basic VIEW (no financial columns) and skips contact /
+// bank_profile joins they don't have RLS access to anyway.
 const TRADE_SELECT = `
   *,
   entity:entities(*),
@@ -14,16 +19,31 @@ const TRADE_SELECT = `
   bank_profile:bank_profiles(*)
 `
 
+const TRADE_SELECT_BASIC = `
+  *,
+  entity:entities(*),
+  client:clients(*)
+`
+
 export function useTrades(filters?: TradeFilters) {
-  const cacheKey = filters ? `tm_trades_${JSON.stringify(filters)}` : 'tm_trades'
+  const { role } = useAuth()
+  // Internal team must not see frigo_total / sale_total / net_profit /
+  // total_costs / shipping / insurance / bank_fees. Routing those queries
+  // through the trades_basic view enforces this at the DB layer, not just
+  // in the UI.
+  const isInternal = role === 'internal'
+  const fromTable = isInternal ? 'trades_basic' : 'trades'
+  const selectClause = isInternal ? TRADE_SELECT_BASIC : TRADE_SELECT
+
+  const cacheKey = `${isInternal ? 'tm_trades_basic' : 'tm_trades'}${filters ? `_${JSON.stringify(filters)}` : ''}`
   const cached = readCache<Trade[]>(cacheKey, CACHE_TTL)
 
   return useQuery({
-    queryKey: ['trades', filters],
+    queryKey: ['trades', isInternal, filters],
     queryFn: async ({ signal }) => {
-      let query = supabase
-        .from('trades')
-        .select(TRADE_SELECT)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query = (supabase.from(fromTable as any) as any)
+        .select(selectClause)
         .order('created_at', { ascending: false })
         .abortSignal(signal)
 
