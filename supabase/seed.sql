@@ -3,7 +3,7 @@
 -- Paste into Supabase SQL Editor at:
 -- https://app.supabase.com/project/xpupsaqsozpatsyeszox/sql/new
 -- ============================================================
-
+-a
 -- ---- 1. Activate both entities ----
 UPDATE entities SET is_active = true
 WHERE id IN (
