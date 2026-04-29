@@ -16,34 +16,35 @@ import { format } from 'date-fns'
 // Adjust x/y/w/h until every coloured box sits exactly on top of its
 // original-PDF text, then switch back to the white overlay.
 const COORDS = {
-  // ── Exporter block (top-left) — data column starts AFTER labels at x≈85
-  exporterName:    { x: 85, y: 750, w: 210, h: 11 },
-  exporterRuc:     { x: 85, y: 738, w: 210, h: 11 },
-  exporterAddress: { x: 85, y: 726, w: 210, h: 11 },
-  exporterCity:    { x: 85, y: 714, w: 210, h: 11 },
-  exporterCountry: { x: 85, y: 702, w: 210, h: 11 },
+  // ── Exporter block (top-left) — wider blocks (x=70) to fully cover the
+  //    original FRIGORIFICO text without leaving "FRI"/"800"/"KM" fragments.
+  exporterName:    { x: 70, y: 754, w: 230, h: 12 },
+  exporterRuc:     { x: 70, y: 742, w: 230, h: 12 },
+  exporterAddress: { x: 70, y: 730, w: 230, h: 12 },
+  exporterCity:    { x: 70, y: 718, w: 230, h: 12 },
+  exporterCountry: { x: 70, y: 706, w: 230, h: 12 },
 
-  // ── Right-side header (sales person / date) — data column starts at x≈360
-  salesPerson:    { x: 360, y: 750, w: 215, h: 11 },
-  salesAssistant: { x: 360, y: 738, w: 215, h: 11 },
-  dateOfIssue:    { x: 360, y: 726, w: 215, h: 11 },
-  email:          { x: 360, y: 702, w: 215, h: 11 },
+  // ── Right-side header (sales person / date) ──────────────────────────
+  salesPerson:    { x: 350, y: 754, w: 230, h: 12 },
+  salesAssistant: { x: 350, y: 742, w: 230, h: 12 },
+  dateOfIssue:    { x: 350, y: 730, w: 230, h: 12 },
+  email:          { x: 350, y: 706, w: 230, h: 12 },
 
-  // ── Client / Buyer block ───────────────────────────────────────────────
-  clientName:    { x: 85, y: 680, w: 210, h: 11 },
-  clientAddress: { x: 85, y: 668, w: 210, h: 11 },
-  clientCity:    { x: 85, y: 656, w: 210, h: 11 },
-  clientCountry: { x: 85, y: 644, w: 210, h: 11 },
+  // ── Client / Buyer block ──────────────────────────────────────────────
+  clientName:    { x: 70, y: 684, w: 230, h: 12 },
+  clientAddress: { x: 70, y: 672, w: 230, h: 12 },
+  clientCity:    { x: 70, y: 660, w: 230, h: 12 },
+  clientCountry: { x: 70, y: 648, w: 230, h: 12 },
 
-  // ── Contact person block (mid-right) ───────────────────────────────────
-  contactPerson: { x: 360, y: 680, w: 215, h: 11 },
-  contactPhone:  { x: 360, y: 668, w: 215, h: 11 },
-  contactEmail:  { x: 360, y: 656, w: 215, h: 11 },
+  // ── Contact person block (mid-right) ──────────────────────────────────
+  contactPerson: { x: 350, y: 684, w: 230, h: 12 },
+  contactPhone:  { x: 350, y: 672, w: 230, h: 12 },
+  contactEmail:  { x: 350, y: 660, w: 230, h: 12 },
 
-  // ── Payer block ────────────────────────────────────────────────────────
-  payerName:     { x: 85, y: 622, w: 210, h: 11 },
-  payerCountry:  { x: 85, y: 610, w: 210, h: 11 },
-  payerCountry2: { x: 85, y: 598, w: 210, h: 11 },
+  // ── Payer block ───────────────────────────────────────────────────────
+  payerName:     { x: 70, y: 626, w: 230, h: 12 },
+  payerCountry:  { x: 70, y: 614, w: 230, h: 12 },
+  payerCountry2: { x: 70, y: 602, w: 230, h: 12 },
 
   // ── Products table (price / total cells) ──────────────────────────────
   unitaryPrice: { x: 425, y: 525, w: 78, h: 11 },

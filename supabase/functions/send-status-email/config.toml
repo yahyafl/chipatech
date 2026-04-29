@@ -1,0 +1,2 @@
+[functions.send-status-email]
+verify_jwt = true

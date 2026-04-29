@@ -7,6 +7,7 @@ import { FileUpload } from '@/components/ui/FileUpload'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useTrade, useUpdateTrade } from '@/hooks/useTrades'
 import { useDocuments, useUploadDocument, useDeleteDocument, useDownloadDocument, useGenerateAuditZip } from '@/hooks/useDocuments'
+import { supabase } from '@/lib/supabase'
 import { formatDate, formatDatetime } from '@/lib/utils'
 import type { DocumentType, TradeDocument } from '@/types'
 
@@ -37,7 +38,16 @@ export default function TradeFolder() {
   const handleUpload = (file: File, type: DocumentType) => {
     uploadDoc({ tradeId: trade.id, file, documentType: type, tradeRef: trade.trade_reference })
     if (type === 'bol' && bolDate) {
-      updateTrade({ id: trade.id, data: { bol_date: bolDate, trade_status: 'shipped' } })
+      updateTrade(
+        { id: trade.id, data: { bol_date: bolDate, trade_status: 'shipped' } },
+        {
+          onSuccess: () => {
+            void supabase.functions.invoke('send-status-email', {
+              body: { trade_id: trade.id, status: 'shipped' },
+            })
+          },
+        }
+      )
     }
   }
 
@@ -53,6 +63,7 @@ export default function TradeFolder() {
         ]}
         actions={
           <button
+            type="button"
             onClick={() => generateZip({ tradeRef: trade.trade_reference, documents: documents ?? [] })}
             disabled={!documents?.length || zipping}
             className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
@@ -77,6 +88,7 @@ export default function TradeFolder() {
                 {doc && (
                   <div className="flex items-center gap-2">
                     <button
+                      type="button"
                       onClick={() => downloadDoc({ storagePath: doc.storage_path, fileName: doc.file_name })}
                       className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                     >
@@ -85,7 +97,10 @@ export default function TradeFolder() {
                     </button>
                     {slot.canDelete && (
                       <button
+                        type="button"
                         onClick={() => setDeleteTarget(doc)}
+                        title="Delete document"
+                        aria-label="Delete document"
                         className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -107,11 +122,14 @@ export default function TradeFolder() {
                 <div className="space-y-2">
                   {slot.type === 'bol' && (
                     <div className="flex items-center gap-2">
-                      <label className="text-xs font-medium text-gray-600">BOL Date:</label>
+                      <label htmlFor="bol-date-input" className="text-xs font-medium text-gray-600">BOL Date:</label>
                       <input
+                        id="bol-date-input"
                         type="date"
                         value={bolDate}
                         onChange={(e) => setBolDate(e.target.value)}
+                        title="Bill of Lading date"
+                        aria-label="Bill of Lading date"
                         className="rounded border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:border-brand-500"
                       />
                     </div>
@@ -147,8 +165,8 @@ export default function TradeFolder() {
               </div>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => downloadDoc({ storagePath: doc.storage_path, fileName: doc.file_name })} className="text-xs text-brand-600 hover:text-brand-700">Download</button>
-              <button onClick={() => setDeleteTarget(doc)} className="text-xs text-red-600 hover:text-red-700">Delete</button>
+              <button type="button" onClick={() => downloadDoc({ storagePath: doc.storage_path, fileName: doc.file_name })} className="text-xs text-brand-600 hover:text-brand-700">Download</button>
+              <button type="button" onClick={() => setDeleteTarget(doc)} className="text-xs text-red-600 hover:text-red-700">Delete</button>
             </div>
           </div>
         ))}

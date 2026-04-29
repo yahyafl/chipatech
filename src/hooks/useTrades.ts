@@ -116,6 +116,10 @@ export function useUpdateTradeStatus() {
         .update({ trade_status: status, updated_at: new Date().toISOString() })
         .eq('id', id)
       if (error) throw error
+      // Notify the client contact whenever the lifecycle advances
+      void supabase.functions.invoke('send-status-email', {
+        body: { trade_id: id, status },
+      })
     },
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: ['trades'] })
@@ -125,28 +129,52 @@ export function useUpdateTradeStatus() {
   })
 }
 
+// Status timeline rank — higher = later in the lifecycle. We never let a
+// later status be overwritten by an earlier one (e.g. clicking "Mark Advance"
+// on an already-shipped trade must NOT regress the status to advance_received).
+const STATUS_RANK: Record<TradeStatus, number> = {
+  draft: 0,
+  active: 1,
+  advance_received: 2,
+  shipped: 3,
+  balance_received: 4,
+  overdue: -1, // overdue is a parallel state; never auto-overwritten by milestone marking
+}
+
 export function useMarkMilestoneReceived() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, milestone }: { id: string; milestone: 'advance' | 'balance' }) => {
-      // Per spec §10.3, marking a payment received also advances the trade
-      // through its status timeline (active → advance_received → balance_received).
-      const field = milestone === 'advance'
-        ? {
-            advance_status: 'received' as MilestoneStatus,
-            advance_received_at: new Date().toISOString(),
-            trade_status: 'advance_received' as TradeStatus,
-          }
-        : {
-            balance_status: 'received' as MilestoneStatus,
-            balance_received_at: new Date().toISOString(),
-            trade_status: 'balance_received' as TradeStatus,
-          }
-      const { error } = await supabase
+      // Read current trade_status so we only move forward, never backward.
+      const { data: current } = await supabase
         .from('trades')
-        .update({ ...field, updated_at: new Date().toISOString() })
+        .select('trade_status, client:clients(contact_email, contact_name, company_name)')
         .eq('id', id)
+        .single()
+
+      const currentStatus = (current?.trade_status as TradeStatus | undefined) ?? 'draft'
+      const targetStatus: TradeStatus = milestone === 'advance' ? 'advance_received' : 'balance_received'
+      const shouldAdvanceStatus = STATUS_RANK[targetStatus] > STATUS_RANK[currentStatus]
+
+      const milestoneFields = milestone === 'advance'
+        ? { advance_status: 'received' as MilestoneStatus, advance_received_at: new Date().toISOString() }
+        : { balance_status: 'received' as MilestoneStatus, balance_received_at: new Date().toISOString() }
+
+      const update = {
+        ...milestoneFields,
+        ...(shouldAdvanceStatus ? { trade_status: targetStatus } : {}),
+        updated_at: new Date().toISOString(),
+      }
+
+      const { error } = await supabase.from('trades').update(update).eq('id', id)
       if (error) throw error
+
+      // Notify the client contact when the trade lifecycle actually advances
+      if (shouldAdvanceStatus) {
+        void supabase.functions.invoke('send-status-email', {
+          body: { trade_id: id, status: targetStatus },
+        })
+      }
     },
     onSuccess: (_, { id, milestone }) => {
       qc.invalidateQueries({ queryKey: ['trades'] })
