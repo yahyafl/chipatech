@@ -1,0 +1,2 @@
+[functions.milestone-alerts]
+schedule = "0 8 * * *"

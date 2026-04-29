@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(cd \"c:\\\\Users\\\\Dell\\\\OneDrive - Beirut Arab University\\\\Desktop\\\\Chipatech\"; echo y | npm create vite@latest . -- --template react-ts 2>&1)",
+      "PowerShell(cd \"c:\\\\Users\\\\Dell\\\\OneDrive - Beirut Arab University\\\\Desktop\\\\Chipatech\"; \"y\" | npm create vite@latest . -- --template react-ts 2>&1)",
+      "PowerShell(cd \"c:\\\\Users\\\\Dell\\\\OneDrive - Beirut Arab University\\\\Desktop\\\\Chipatech\"; $input = [System.Console]::In; npx --yes create-vite@latest . --template react-ts 2>&1)",
+      "Bash(yes)",
+      "Bash(npx create-vite@latest . --template react-ts)",
+      "Bash(npx create-vite@latest TradeMirrorTemp --template react-ts)",
+      "PowerShell($src = \"c:\\\\Users\\\\Dell\\\\OneDrive - Beirut Arab University\\\\Desktop\\\\Chipatech\\\\TradeMirrorTemp\"; $dst = \"c:\\\\Users\\\\Dell\\\\OneDrive - Beirut Arab University\\\\Desktop\\\\Chipatech\"; Get-ChildItem -Path $src -Force | ForEach-Object { Move-Item -Path $_.FullName -Destination $dst -Force }; Remove-Item -Path $src -Recurse -Force; ls $dst)",
+      "Bash(npm run *)",
+      "WebSearch"
+    ]
+  }
+}
