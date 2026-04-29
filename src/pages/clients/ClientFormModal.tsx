@@ -76,16 +76,16 @@ export function ClientFormModal({ client, onClose }: ClientFormModalProps) {
         <FormField label="Country" error={errors.country} required>
           <Input error={!!errors.country} {...register('country')} />
         </FormField>
-        <FormField label="Tax ID / RUC" error={errors.tax_id} required className="col-span-2">
+        <FormField label="Tax ID / RUC" error={errors.tax_id} className="col-span-2">
           <Input error={!!errors.tax_id} {...register('tax_id')} />
         </FormField>
-        <FormField label="Contact Person Name" error={errors.contact_name} required>
+        <FormField label="Contact Person Name" error={errors.contact_name}>
           <Input error={!!errors.contact_name} {...register('contact_name')} />
         </FormField>
-        <FormField label="Contact Email" error={errors.contact_email} required>
+        <FormField label="Contact Email" error={errors.contact_email}>
           <Input type="email" error={!!errors.contact_email} {...register('contact_email')} />
         </FormField>
-        <FormField label="Contact Phone" error={errors.contact_phone} required className="col-span-2">
+        <FormField label="Contact Phone" error={errors.contact_phone} className="col-span-2">
           <Input error={!!errors.contact_phone} {...register('contact_phone')} />
         </FormField>
         <FormField label="Notes" className="col-span-2">

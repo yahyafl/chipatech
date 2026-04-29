@@ -14,6 +14,7 @@ export default function Login() {
   const { login, user, role } = useAuth()
   const navigate = useNavigate()
   const [slowWarning, setSlowWarning] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Redirect already-authenticated users
@@ -33,14 +34,20 @@ export default function Login() {
 
   const onSubmit = async (data: LoginFormData) => {
     setSlowWarning(false)
+    setAuthError(null)
     // Show a "taking longer than usual" hint after 4 seconds
     slowTimer.current = setTimeout(() => setSlowWarning(true), 4000)
     try {
       await login(data.email, data.password)
       // Redirect handled by useEffect above once loadUser sets user+role
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Invalid email or password'
-      toast.error(message)
+      // Generic message — don't leak whether the email exists
+      const raw = err instanceof Error ? err.message : ''
+      const friendly = /invalid login credentials|invalid email|invalid password/i.test(raw)
+        ? 'Invalid email or password'
+        : raw || 'Sign-in failed. Please try again.'
+      setAuthError(friendly)
+      toast.error(friendly)
     } finally {
       if (slowTimer.current) clearTimeout(slowTimer.current)
       setSlowWarning(false)
@@ -55,6 +62,11 @@ export default function Login() {
           <p className="mt-1 text-sm text-gray-500">Sign in to your TradeMirror account</p>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {authError && (
+            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+              {authError}
+            </div>
+          )}
           <FormField label="Email address" error={errors.email} required>
             <Input
               type="email"

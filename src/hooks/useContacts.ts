@@ -30,6 +30,11 @@ export function useCreateContact() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (data: ContactFormData) => {
+      // If this contact is being created as default, unset any other default
+      // first so the "single default" invariant from PRD §6.2 holds.
+      if (data.is_default) {
+        await supabase.from('contacts').update({ is_default: false }).eq('is_default', true)
+      }
       const { data: created, error } = await supabase.from('contacts').insert(data).select().single()
       if (error) throw error
       return created as Contact
@@ -45,6 +50,10 @@ export function useUpdateContact() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<ContactFormData> }) => {
+      // Same single-default invariant as create.
+      if (data.is_default) {
+        await supabase.from('contacts').update({ is_default: false }).eq('is_default', true).neq('id', id)
+      }
       const { data: updated, error } = await supabase.from('contacts').update(data).eq('id', id).select().single()
       if (error) throw error
       return updated as Contact

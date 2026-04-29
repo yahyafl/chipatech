@@ -56,7 +56,11 @@ export default function UserManagement() {
       key: 'is_active',
       header: 'Status',
       render: (row) => (
-        <StatusBadge status={row.is_active ? 'received' : 'overdue'} />
+        row.is_active ? (
+          <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">Active</span>
+        ) : (
+          <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">Inactive</span>
+        )
       ),
     },
     {

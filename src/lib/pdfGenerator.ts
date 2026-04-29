@@ -16,19 +16,21 @@ import { format } from 'date-fns'
 // Adjust x/y/w/h until every coloured box sits exactly on top of its
 // original-PDF text, then switch back to the white overlay.
 const COORDS = {
-  // ── Exporter block (top-left) — wider blocks (x=70) to fully cover the
-  //    original FRIGORIFICO text without leaving "FRI"/"800"/"KM" fragments.
-  exporterName:    { x: 70, y: 754, w: 230, h: 12 },
-  exporterRuc:     { x: 70, y: 742, w: 230, h: 12 },
-  exporterAddress: { x: 70, y: 730, w: 230, h: 12 },
-  exporterCity:    { x: 70, y: 718, w: 230, h: 12 },
-  exporterCountry: { x: 70, y: 706, w: 230, h: 12 },
+  // ── Exporter block (top-left). Calibrated 2026-04: every row was 1
+  //    full row too high, so y values reduced by 12pt across the block.
+  exporterName:    { x: 70, y: 742, w: 230, h: 12 },
+  exporterRuc:     { x: 70, y: 730, w: 230, h: 12 },
+  exporterAddress: { x: 70, y: 718, w: 230, h: 12 },
+  exporterCity:    { x: 70, y: 706, w: 230, h: 12 },
+  exporterCountry: { x: 70, y: 694, w: 230, h: 12 },
 
-  // ── Right-side header (sales person / date) ──────────────────────────
-  salesPerson:    { x: 350, y: 754, w: 230, h: 12 },
-  salesAssistant: { x: 350, y: 742, w: 230, h: 12 },
-  dateOfIssue:    { x: 350, y: 730, w: 230, h: 12 },
-  email:          { x: 350, y: 706, w: 230, h: 12 },
+  // ── Right-side header — calibrated 2026-04 (pass 7): email pulled
+  //    down 12pt because source MARCUS@... was bleeding through one row
+  //    below our white block.
+  salesPerson:    { x: 350, y: 738, w: 230, h: 12 },
+  salesAssistant: { x: 350, y: 726, w: 230, h: 12 },
+  dateOfIssue:    { x: 350, y: 714, w: 230, h: 12 },
+  email:          { x: 350, y: 678, w: 230, h: 12 },
 
   // ── Client / Buyer block ──────────────────────────────────────────────
   clientName:    { x: 70, y: 684, w: 230, h: 12 },
@@ -41,33 +43,48 @@ const COORDS = {
   contactPhone:  { x: 350, y: 672, w: 230, h: 12 },
   contactEmail:  { x: 350, y: 660, w: 230, h: 12 },
 
-  // ── Payer block ───────────────────────────────────────────────────────
-  payerName:     { x: 70, y: 626, w: 230, h: 12 },
-  payerCountry:  { x: 70, y: 614, w: 230, h: 12 },
-  payerCountry2: { x: 70, y: 602, w: 230, h: 12 },
+  // ── Payer block — calibrated 2026-04 (pass 4): block was one row late,
+  //    payerName was landing on "Country of Origin" instead of "Payer".
+  //    Shifted up 12pt to align with the actual Payer data rows.
+  payerName:     { x: 70, y: 638, w: 230, h: 12 },
+  payerCountry:  { x: 70, y: 626, w: 230, h: 12 },
+  payerCountry2: { x: 70, y: 614, w: 230, h: 12 },
 
-  // ── Products table (price / total cells) ──────────────────────────────
-  unitaryPrice: { x: 425, y: 525, w: 78, h: 11 },
-  totalAmount:  { x: 510, y: 525, w: 70, h: 11 },
-  grandTotal:   { x: 510, y: 485, w: 70, h: 11 },
+  // ── Products table (price / total cells).
+  //    Calibrated 2026-04 (pass 5): pass 4 was 1 row too low — unitaryPrice
+  //    landed on the "Total" row. Bumped up 12pt so it sits on the data row
+  //    "27,00 ... 2.100,000 | 56.700,00", and grandTotal moved up to the
+  //    Total row.
+  unitaryPrice: { x: 425, y: 557, w: 78, h: 11 },
+  totalAmount:  { x: 510, y: 557, w: 70, h: 11 },
+  grandTotal:   { x: 510, y: 545, w: 70, h: 11 },
 
   // ── Specs block — Brand/Validity/Temperature/Packing/Shipment/Origin/
   //    Destination/FreightCondition are PURE MIRROR per spec §7.2.
   //    Only Prepayment + Balance get rewritten with new amounts.
-  prepaymentCondition: { x: 130, y: 216, w: 175, h: 11 },
-  balanceCondition:    { x: 130, y: 204, w: 175, h: 11 },
+  //    Calibrated 2026-04 (pass 6): pass 5 was 1 row too low — boxes
+  //    landed on "Balance Condition" / "Law and Jurisdiction" rows.
+  //    Bumped up 12pt to sit on the actual Prepayment / Balance rows.
+  prepaymentCondition: { x: 130, y: 272, w: 175, h: 11 },
+  balanceCondition:    { x: 130, y: 260, w: 175, h: 11 },
 
-  // ── Costs (right-side specs row) — admin-input only ───────────────────
-  freightCost:   { x: 405, y: 252, w: 65, h: 11 },
-  insuranceCost: { x: 405, y: 240, w: 65, h: 11 },
+  // ── Costs (right-side specs row) — admin-input only.
+  //    Calibrated 2026-04 (pass 4): pass 3 was still 1-2 rows too low,
+  //    boxes were sitting near "Freight Condition PREPAID" instead of on
+  //    the actual Freight cost / Insurance cost data rows.
+  freightCost:   { x: 405, y: 320, w: 65, h: 11 },
+  insuranceCost: { x: 405, y: 308, w: 65, h: 11 },
 
-  // ── Banking block ─────────────────────────────────────────────────────
-  intermediaryBankName:  { x: 130, y: 156, w: 175, h: 11 },
-  intermediaryBankSwift: { x: 130, y: 144, w: 175, h: 11 },
-  bankName:              { x: 130, y: 116, w: 175, h: 11 },
-  bankSwift:             { x: 130, y: 104, w: 175, h: 11 },
-  accountNumber:         { x: 130, y: 92,  w: 175, h: 11 },
-  beneficiaryName:       { x: 85, y: 70,   w: 220, h: 11 },
+  // ── Banking block — calibrated 2026-04 (pass 7): every bank row was
+  //    ~60pt below its target — values were landing in the QR/signature
+  //    area while the original Frigo bank info was leaking through above.
+  //    Shifted up 60pt to land on the actual BENEFICIARY'S BANK rows.
+  intermediaryBankName:  { x: 130, y: 216, w: 175, h: 11 },
+  intermediaryBankSwift: { x: 130, y: 204, w: 175, h: 11 },
+  bankName:              { x: 130, y: 176, w: 175, h: 11 },
+  bankSwift:             { x: 130, y: 164, w: 175, h: 11 },
+  accountNumber:         { x: 130, y: 152, w: 175, h: 11 },
+  beneficiaryName:       { x: 85,  y: 130, w: 460, h: 11 },
 
   // ── Buyer signature ────────────────────────────────────────────────────
   buyerEntityName: { x: 380, y: 38, w: 195, h: 11 },
@@ -80,6 +97,7 @@ interface OverlayField {
   value: string
   fontSize?: number
   bold?: boolean
+  align?: 'left' | 'right' // default 'left' — use 'right' for numeric cells
 }
 
 function formatCurrencyPDF(amount: number): string {
@@ -145,10 +163,10 @@ export async function generateMirroredContract(
     { coord: 'payerCountry',  value: data.entityCountry },
     { coord: 'payerCountry2', value: data.entityCountry },
 
-    // Prices
-    { coord: 'unitaryPrice', value: `USD ${formatCurrencyPDF(data.saleUnitPrice)}`, bold: true },
-    { coord: 'totalAmount',  value: `USD ${formatCurrencyPDF(data.saleTotal)}`,     bold: true },
-    { coord: 'grandTotal',   value: `USD ${formatCurrencyPDF(data.saleTotal)}`,     bold: true },
+    // Prices — numeric cells, right-aligned to match Frigo's column layout
+    { coord: 'unitaryPrice', value: `USD ${formatCurrencyPDF(data.saleUnitPrice)}`, bold: true, align: 'right' },
+    { coord: 'totalAmount',  value: `USD ${formatCurrencyPDF(data.saleTotal)}`,     bold: true, align: 'right' },
+    { coord: 'grandTotal',   value: `USD ${formatCurrencyPDF(data.saleTotal)}`,     bold: true, align: 'right' },
 
     // Payment terms — recalculated from new sale total
     { coord: 'prepaymentCondition', value: prepaymentText },
@@ -172,11 +190,14 @@ export async function generateMirroredContract(
 
   for (const field of fields) {
     const c = COORDS[field.coord]
-    const fontSize = field.fontSize ?? 7.5
+    // 8pt matches the Helvetica body text used by the Frigo template.
+    // Bigger feels patched-on, smaller feels squashed below the row.
+    const fontSize = field.fontSize ?? 8
     const font = field.bold ? helveticaBold : helvetica
 
-    // White cover rectangle — starts 1pt below the text baseline so
-    // descenders are also hidden; extends h+1 pts upward from there.
+    // White cover rectangle — extends 1pt below baseline to hide
+    // descenders, and 1pt above to hide ascender tops. Without this
+    // bleed-margin source text fragments leak through the patch.
     page.drawRectangle({
       x: c.x,
       y: c.y - 1,
@@ -188,8 +209,16 @@ export async function generateMirroredContract(
 
     if (field.value) {
       const text = fitText(field.value, font, fontSize, c.w)
+      const textWidth = font.widthOfTextAtSize(text, fontSize)
+      // Right-align numeric cells (prices) to match the original Frigo
+      // layout where the column was right-aligned. Other fields stay left.
+      const textX = field.align === 'right'
+        ? c.x + c.w - textWidth - 2
+        : c.x + 1
+      // Text baseline at c.y + 2 — same as Frigo's source baselines, so
+      // characters sit on the same line the original text sat on.
       page.drawText(text, {
-        x: c.x + 1,
+        x: textX,
         y: c.y + 2,
         size: fontSize,
         font,

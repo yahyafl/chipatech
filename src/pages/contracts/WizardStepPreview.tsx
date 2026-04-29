@@ -76,15 +76,19 @@ export function WizardStepPreview({ contractData, sourceFile, onPdfGenerated, on
 
       <div className="flex justify-between pt-4 border-t border-gray-100">
         <div className="flex items-center gap-2">
-          <button onClick={onBack} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Back to Edit</button>
-          <button
-            type="button"
-            onClick={() => void downloadCalibration(sourceFile)}
-            className="rounded-lg border border-amber-200 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 transition-colors"
-            title="Download a PDF with coloured boxes showing where each overlay field lands — use it to calibrate coordinates"
-          >
-            Calibration PDF
-          </button>
+          <button type="button" onClick={onBack} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Back to Edit</button>
+          {/* Calibration tool — only visible in dev mode (not in production
+              builds). Used for adjusting the PDF overlay coordinate map. */}
+          {import.meta.env.DEV && (
+            <button
+              type="button"
+              onClick={() => void downloadCalibration(sourceFile)}
+              className="rounded-lg border border-amber-200 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 transition-colors"
+              title="Dev only — download a PDF with coloured boxes showing where each overlay field lands"
+            >
+              Calibration PDF
+            </button>
+          )}
         </div>
         <button
           type="button"
