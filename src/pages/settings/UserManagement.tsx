@@ -7,11 +7,10 @@ import { Modal } from '@/components/ui/Modal'
 import { FormField, Input, Select } from '@/components/ui/FormField'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useUsers, useInviteUser, useUpdateUser, useDeactivateUser, useReactivateUser, useDeleteUser } from '@/hooks/useUsers'
 import { useAuth } from '@/context/AuthContext'
 import { inviteUserSchema, type InviteUserFormData, type User, type UserRole } from '@/types'
-import { formatDate, timeAgo } from '@/lib/utils'
+import { timeAgo } from '@/lib/utils'
 
 export default function UserManagement() {
   const { user: currentUser } = useAuth()
