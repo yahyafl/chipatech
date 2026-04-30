@@ -35,14 +35,16 @@ export default function ContractWizard() {
         <p className="mt-1 text-sm text-gray-500">Generate a mirrored sales contract from the Frigo purchase contract</p>
       </div>
 
-      {/* Step indicator */}
+      {/* Step indicator. On phones (< 640px) the step labels are hidden
+          to keep the 5 circles + connectors readable on a 320px viewport.
+          The active step's number/check still indicates progress clearly. */}
       <div className="flex items-center gap-0">
         {STEPS.map((step, idx) => (
           <div key={step.id} className="flex items-center flex-1">
             <div className="flex flex-col items-center">
               <div
                 className={cn(
-                  'flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-all',
+                  'flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-xs sm:text-sm font-semibold transition-all',
                   currentStep > step.id
                     ? 'bg-brand-600 text-white'
                     : currentStep === step.id
@@ -50,24 +52,24 @@ export default function ContractWizard() {
                     : 'bg-gray-200 text-gray-500'
                 )}
               >
-                {currentStep > step.id ? <Check className="h-4 w-4" /> : step.id}
+                {currentStep > step.id ? <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : step.id}
               </div>
               <span className={cn(
-                'mt-1.5 text-xs font-medium',
+                'mt-1.5 text-xs font-medium hidden sm:inline',
                 currentStep === step.id ? 'text-brand-700' : 'text-gray-500'
               )}>
                 {step.label}
               </span>
             </div>
             {idx < STEPS.length - 1 && (
-              <div className={cn('flex-1 h-0.5 mx-2 mt-[-18px]', currentStep > step.id ? 'bg-brand-600' : 'bg-gray-200')} />
+              <div className={cn('flex-1 h-0.5 mx-1 sm:mx-2 sm:mt-[-18px]', currentStep > step.id ? 'bg-brand-600' : 'bg-gray-200')} />
             )}
           </div>
         ))}
       </div>
 
-      {/* Step content */}
-      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-6">
+      {/* Step content — tighter padding on phones so forms have room */}
+      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-4 sm:p-6">
         {currentStep === 1 && (
           <WizardStepUpload
             onComplete={(file, data) => {

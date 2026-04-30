@@ -44,10 +44,11 @@ export default function TradeDetail() {
           <div className="flex items-center gap-2">
             <Link
               to={`/trades/${trade.id}/folder`}
+              title="Trade Folder"
               className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
             >
               <FolderOpen className="h-4 w-4" />
-              Trade Folder
+              <span className="hidden sm:inline">Trade Folder</span>
             </Link>
             {isSuperAdmin && (
               <button
@@ -60,15 +61,24 @@ export default function TradeDetail() {
                 className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
                 <Send className="h-4 w-4" />
-                {trade.contract_sent_at ? 'Resend to Client' : 'Send to Client'}
+                <span className="hidden sm:inline">{trade.contract_sent_at ? 'Resend to Client' : 'Send to Client'}</span>
               </button>
             )}
             {isSuperAdmin && availableTransition && (
               <button
+                type="button"
                 onClick={() => setConfirmStatus(availableTransition.to)}
+                title={availableTransition.label}
                 className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
               >
-                {availableTransition.label}
+                <span className="hidden sm:inline">{availableTransition.label}</span>
+                {/* Mobile: short verb only so the button stays tappable on
+                    320px viewports without horizontal scroll. */}
+                <span className="sm:hidden">
+                  {availableTransition.to === 'active' ? 'Send' :
+                   availableTransition.to === 'shipped' ? 'Shipped' :
+                   availableTransition.to === 'balance_received' ? 'Balance ✓' : 'Update'}
+                </span>
               </button>
             )}
           </div>
@@ -177,6 +187,7 @@ export default function TradeDetail() {
             </div>
             {isSuperAdmin && trade.advance_status === 'pending' && (
               <button
+                type="button"
                 onClick={() => setConfirmMilestone('advance')}
                 className="mt-3 w-full rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
               >
@@ -214,6 +225,7 @@ export default function TradeDetail() {
             </div>
             {isSuperAdmin && trade.balance_status === 'pending' && trade.bol_date && (
               <button
+                type="button"
                 onClick={() => setConfirmMilestone('balance')}
                 className="mt-3 w-full rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
               >
