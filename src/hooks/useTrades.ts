@@ -101,13 +101,14 @@ export function useTrade(id: string | undefined) {
 export function useCreateTrade() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (data: Omit<Trade, 'id' | 'trade_reference' | 'created_at' | 'updated_at' | 'entity' | 'client' | 'contact' | 'bank_profile'>) => {
+    mutationFn: async (data: Omit<Trade, 'id' | 'trade_reference' | 'created_at' | 'updated_at' | 'contract_sent_at' | 'entity' | 'client' | 'contact' | 'bank_profile'>) => {
       const { count } = await supabase.from('trades').select('*', { count: 'exact', head: true })
       const year = new Date().getFullYear()
       const num = String((count ?? 0) + 1).padStart(3, '0')
       const trade_reference = `CF-${year}-${num}`
       const { data: created, error } = await supabase
-        .from('trades').insert({ ...data, trade_reference }).select().single()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .from('trades').insert({ ...data, trade_reference } as any).select().single()
       if (error) throw error
       return created as Trade
     },
@@ -125,7 +126,8 @@ export function useUpdateTrade() {
       const { entity: _e, client: _c, contact: _co, bank_profile: _b, ...dbData } = data
       const { data: updated, error } = await supabase
         .from('trades')
-        .update({ ...dbData, updated_at: new Date().toISOString() })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .update({ ...dbData, updated_at: new Date().toISOString() } as any)
         .eq('id', id).select().single()
       if (error) throw error
       return updated as Trade
@@ -211,5 +213,30 @@ export function useMarkMilestoneReceived() {
       qc.invalidateQueries({ queryKey: ['trades', id] })
       toast.success(`${milestone === 'advance' ? 'Advance' : 'Balance'} payment marked as received`)
     },
+  })
+}
+
+/** Manually emails the generated Sales Contract PDF to the selected
+ *  client's contact email. Super-admin only; surfaces Resend errors as
+ *  toast messages so the operator can retry. The edge function stamps
+ *  trades.contract_sent_at on success — drives the "Sent at <ts>" label
+ *  in TradeDetail. */
+export function useSendContractToClient() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (tradeId: string) => {
+      const { data, error } = await supabase.functions.invoke('send-contract-to-client', {
+        body: { trade_id: tradeId },
+      })
+      if (error) throw new Error(error.message ?? 'Send failed')
+      if (data?.error) throw new Error(data.error)
+      return data
+    },
+    onSuccess: (_, tradeId) => {
+      qc.invalidateQueries({ queryKey: ['trades'] })
+      qc.invalidateQueries({ queryKey: ['trades', tradeId] })
+      toast.success('Contract emailed to client')
+    },
+    onError: (err: Error) => toast.error(err.message),
   })
 }

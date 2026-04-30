@@ -80,11 +80,20 @@ export function useDeleteClient() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('clients').delete().eq('id', id)
-      if (error) throw error
+      if (error) {
+        // trades.client_id has no ON DELETE CASCADE, so a client with any
+        // trades raises a Postgres FK violation. Translate to a useful
+        // toast instead of leaking the raw error.
+        if (/foreign key|violates|referenced|23503/i.test(error.message)) {
+          throw new Error('Cannot delete: this client is referenced by one or more trades. Reassign or delete those trades first.')
+        }
+        throw error
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clients'] })
       toast.success('Client deleted')
     },
+    onError: (err: Error) => toast.error(err.message),
   })
 }

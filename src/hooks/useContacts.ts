@@ -70,12 +70,18 @@ export function useDeleteContact() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('contacts').delete().eq('id', id)
-      if (error) throw error
+      if (error) {
+        if (/foreign key|violates|referenced|23503/i.test(error.message)) {
+          throw new Error('Cannot delete: this contact is referenced by one or more trades. Reassign or delete those trades first.')
+        }
+        throw error
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contacts'] })
       toast.success('Contact deleted')
     },
+    onError: (err: Error) => toast.error(err.message),
   })
 }
 

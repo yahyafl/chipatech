@@ -8,11 +8,12 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "functions:deploy": "npx supabase functions deploy invite-user delete-user set-user-active milestone-alerts send-status-email",
+    "functions:deploy": "npx supabase functions deploy invite-user delete-user set-user-active milestone-alerts send-status-email send-contract-to-client",
     "functions:deploy:invite": "npx supabase functions deploy invite-user",
     "functions:deploy:delete": "npx supabase functions deploy delete-user",
     "functions:deploy:set-active": "npx supabase functions deploy set-user-active",
-    "functions:deploy:status-email": "npx supabase functions deploy send-status-email"
+    "functions:deploy:status-email": "npx supabase functions deploy send-status-email",
+    "functions:deploy:send-contract": "npx supabase functions deploy send-contract-to-client"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

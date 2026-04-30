@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { FolderOpen, CheckCircle, Clock, AlertTriangle } from 'lucide-react'
+import { FolderOpen, CheckCircle, Clock, AlertTriangle, Send } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { useTrade, useMarkMilestoneReceived, useUpdateTradeStatus } from '@/hooks/useTrades'
+import { useTrade, useMarkMilestoneReceived, useUpdateTradeStatus, useSendContractToClient } from '@/hooks/useTrades'
 import { useAuth } from '@/context/AuthContext'
 import { formatCurrency, formatDate, formatDatetime } from '@/lib/utils'
 import type { TradeStatus } from '@/types'
@@ -22,8 +22,10 @@ export default function TradeDetail() {
   const { data: trade, isLoading } = useTrade(id)
   const { mutate: markMilestone, isPending: markingMilestone } = useMarkMilestoneReceived()
   const { mutate: updateStatus, isPending: updatingStatus } = useUpdateTradeStatus()
+  const { mutate: sendContract, isPending: sendingContract } = useSendContractToClient()
   const [confirmMilestone, setConfirmMilestone] = useState<'advance' | 'balance' | null>(null)
   const [confirmStatus, setConfirmStatus] = useState<TradeStatus | null>(null)
+  const [confirmSendContract, setConfirmSendContract] = useState(false)
 
   const isSuperAdmin = role === 'super_admin'
 
@@ -47,6 +49,20 @@ export default function TradeDetail() {
               <FolderOpen className="h-4 w-4" />
               Trade Folder
             </Link>
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => setConfirmSendContract(true)}
+                disabled={sendingContract}
+                title={trade.contract_sent_at
+                  ? `Last sent ${formatDatetime(trade.contract_sent_at)} — click to resend`
+                  : 'Email the generated sales contract PDF to the client'}
+                className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                <Send className="h-4 w-4" />
+                {trade.contract_sent_at ? 'Resend to Client' : 'Send to Client'}
+              </button>
+            )}
             {isSuperAdmin && availableTransition && (
               <button
                 onClick={() => setConfirmStatus(availableTransition.to)}
@@ -253,6 +269,25 @@ export default function TradeDetail() {
         description={`Change trade status to "${confirmStatus}"?`}
         confirmLabel="Update Status"
         isLoading={updatingStatus}
+        variant="warning"
+      />
+
+      <ConfirmDialog
+        open={confirmSendContract}
+        onClose={() => setConfirmSendContract(false)}
+        onConfirm={() => {
+          if (id) sendContract(id, { onSuccess: () => setConfirmSendContract(false) })
+        }}
+        title={trade.contract_sent_at ? 'Resend contract to client' : 'Send contract to client'}
+        description={
+          trade.client?.contact_email
+            ? `Email the generated sales contract (${trade.trade_reference}.pdf) to ${trade.client.contact_email}?${
+                trade.contract_sent_at ? ` Last sent ${formatDatetime(trade.contract_sent_at)}.` : ''
+              }`
+            : 'This client has no contact email on file. Add one in the Client CMS first.'
+        }
+        confirmLabel={trade.contract_sent_at ? 'Resend' : 'Send'}
+        isLoading={sendingContract}
         variant="warning"
       />
     </div>

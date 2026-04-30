@@ -103,6 +103,7 @@ export interface Trade {
   balance_status: MilestoneStatus
   balance_received_at: string | null
   trade_status: TradeStatus
+  contract_sent_at: string | null
   created_at: string
   updated_at: string
   // Joined

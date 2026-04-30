@@ -64,11 +64,17 @@ export function useDeleteBankProfile() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('bank_profiles').delete().eq('id', id)
-      if (error) throw error
+      if (error) {
+        if (/foreign key|violates|referenced|23503/i.test(error.message)) {
+          throw new Error('Cannot delete: this banking profile is referenced by one or more trades. Reassign or delete those trades first.')
+        }
+        throw error
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['bank_profiles'] })
       toast.success('Banking profile deleted')
     },
+    onError: (err: Error) => toast.error(err.message),
   })
 }
