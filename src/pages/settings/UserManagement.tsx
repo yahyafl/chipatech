@@ -8,7 +8,7 @@ import { FormField, Input, Select } from '@/components/ui/FormField'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { useUsers, useInviteUser, useUpdateUserRole, useDeactivateUser, useReactivateUser, useDeleteUser } from '@/hooks/useUsers'
+import { useUsers, useInviteUser, useUpdateUser, useDeactivateUser, useReactivateUser, useDeleteUser } from '@/hooks/useUsers'
 import { useAuth } from '@/context/AuthContext'
 import { inviteUserSchema, type InviteUserFormData, type User, type UserRole } from '@/types'
 import { formatDate, timeAgo } from '@/lib/utils'
@@ -17,7 +17,7 @@ export default function UserManagement() {
   const { user: currentUser } = useAuth()
   const { data: users, isLoading } = useUsers()
   const { mutate: inviteUser, isPending: inviting } = useInviteUser()
-  const { mutate: updateRole, isPending: updatingRole } = useUpdateUserRole()
+  const { mutate: updateUser, isPending: updatingUser } = useUpdateUser()
   const { mutate: deactivate, isPending: deactivating } = useDeactivateUser()
   const { mutate: reactivate, isPending: reactivating } = useReactivateUser()
   const { mutate: deleteUser, isPending: deleting } = useDeleteUser()
@@ -25,7 +25,8 @@ export default function UserManagement() {
   const [deactivateTarget, setDeactivateTarget] = useState<User | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
   const [editTarget, setEditTarget] = useState<User | null>(null)
-  const [newRole, setNewRole] = useState<UserRole>('internal')
+  const [editName, setEditName] = useState('')
+  const [editRole, setEditRole] = useState<UserRole>('internal')
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<InviteUserFormData>({
     resolver: zodResolver(inviteUserSchema),
@@ -76,9 +77,9 @@ export default function UserManagement() {
         return (
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={() => { setEditTarget(row); setNewRole(row.role) }}
+              onClick={() => { setEditTarget(row); setEditName(row.full_name); setEditRole(row.role) }}
               className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              title="Edit role"
+              title="Edit user"
             >
               <Pencil className="h-4 w-4" />
             </button>
@@ -146,24 +147,35 @@ export default function UserManagement() {
         </div>
       </Modal>
 
-      {/* Edit Role Modal */}
-      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit User Role"
+      {/* Edit User Modal — name + role per PRD §2.4. Status (active /
+          inactive) is changed via the dedicated Power toggle button so the
+          dedicated edge function can also revoke the auth session. */}
+      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit User"
         footer={
           <>
             <button onClick={() => setEditTarget(null)} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
             <button onClick={() => {
-              if (editTarget) updateRole({ id: editTarget.id, role: newRole }, { onSuccess: () => setEditTarget(null) })
-            }} disabled={updatingRole} className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
-              {updatingRole && <LoadingSpinner size="sm" />}
-              Update Role
+              if (!editTarget) return
+              const trimmed = editName.trim()
+              if (trimmed.length < 2) return
+              updateUser(
+                { id: editTarget.id, full_name: trimmed, role: editRole },
+                { onSuccess: () => setEditTarget(null) },
+              )
+            }} disabled={updatingUser || editName.trim().length < 2} className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
+              {updatingUser && <LoadingSpinner size="sm" />}
+              Save
             </button>
           </>
         }
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">Editing role for <strong>{editTarget?.full_name}</strong></p>
+          <p className="text-sm text-gray-600">{editTarget?.email}</p>
+          <FormField label="Full Name" required>
+            <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+          </FormField>
           <FormField label="Role">
-            <Select value={newRole} onChange={(e) => setNewRole(e.target.value as UserRole)}>
+            <Select value={editRole} onChange={(e) => setEditRole(e.target.value as UserRole)}>
               <option value="internal">Internal Team Member</option>
               <option value="partner">Partner (Financier)</option>
               <option value="super_admin">Super Admin</option>

@@ -261,18 +261,20 @@ export const inviteUserSchema = z.object({
   role: z.enum(['super_admin', 'internal', 'partner'] as const),
 })
 
-// Per PRD §5.1: only Company Name, Address, City, Country are required.
-// Tax ID, contact details, and notes are optional. We default optionals
-// to '' so the inferred type stays string and the DB insert works.
+// Per PRD §5.1: every column except `notes` is required (Tax ID / Contact
+// Person Name / Email / Phone all marked Required). The schema enforces
+// this on form submit, so the constraint applies to all NEW client rows
+// and any EDITED row — older rows that pre-date this rule keep whatever
+// values they have until the admin opens them in the editor.
 export const clientSchema = z.object({
   company_name: z.string().min(1, 'Company name is required'),
   address: z.string().min(1, 'Address is required'),
   city: z.string().min(1, 'City is required'),
   country: z.string().min(1, 'Country is required'),
-  tax_id: z.string().default(''),
-  contact_name: z.string().default(''),
-  contact_email: z.union([z.string().email('Invalid email address'), z.literal('')]).default(''),
-  contact_phone: z.string().default(''),
+  tax_id: z.string().min(1, 'Tax ID / RUC is required'),
+  contact_name: z.string().min(1, 'Contact person name is required'),
+  contact_email: z.string().email('Invalid email address'),
+  contact_phone: z.string().min(1, 'Contact person phone is required'),
   notes: z.string().optional(),
 })
 

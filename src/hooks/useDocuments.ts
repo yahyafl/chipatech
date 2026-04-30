@@ -129,17 +129,41 @@ export function useDownloadDocument() {
   })
 }
 
+// Prefix lookup so each ZIP entry shows the document_type up front.
+// Without this, three "scan.pdf" uploads (one per slot) all collide
+// inside the ZIP and the CPA can't tell what's what.
+const DOC_TYPE_PREFIX: Record<string, string> = {
+  frigo_contract: '01-frigo-contract',
+  sales_contract: '02-sales-contract',
+  signed_contract: '03-signed-contract',
+  bol: '04-bol',
+  other: '05-other',
+}
+
 export function useGenerateAuditZip() {
   return useMutation({
     mutationFn: async ({ tradeRef, documents }: { tradeRef: string; documents: TradeDocument[] }) => {
       const zip = new JSZip()
+      const usedNames = new Set<string>()
       for (const doc of documents) {
         const { data, error } = await supabase.storage
           .from('trade-documents')
           .download(doc.storage_path)
-        if (!error && data) {
-          zip.file(doc.file_name, data)
+        if (error || !data) continue
+        // Build a clear, collision-free entry name: "{seq}-{type}__{original}"
+        const prefix = DOC_TYPE_PREFIX[doc.document_type] ?? `99-${doc.document_type}`
+        let entryName = `${prefix}__${doc.file_name}`
+        let suffix = 1
+        while (usedNames.has(entryName)) {
+          // Two uploads of the same type with the same filename — append (n).
+          const dot = doc.file_name.lastIndexOf('.')
+          const base = dot > 0 ? doc.file_name.slice(0, dot) : doc.file_name
+          const ext = dot > 0 ? doc.file_name.slice(dot) : ''
+          entryName = `${prefix}__${base}-${suffix}${ext}`
+          suffix++
         }
+        usedNames.add(entryName)
+        zip.file(entryName, data)
       }
       const blob = await zip.generateAsync({ type: 'blob' })
       downloadBlob(blob, `${tradeRef}-audit-trail.zip`)

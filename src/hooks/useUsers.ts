@@ -57,17 +57,50 @@ export function useUpdateUserRole() {
   })
 }
 
+/** Updates one or more editable user fields (name, role) in a single trip.
+ *  Per PRD §2.4 the Edit User dialog can change name, role, or status — name
+ *  + role go through here; status uses the dedicated activate/deactivate
+ *  flow so it can also invalidate the auth session. */
+export function useUpdateUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, full_name, role }: { id: string; full_name?: string; role?: UserRole }) => {
+      const patch: { full_name?: string; role?: UserRole } = {}
+      if (full_name !== undefined) patch.full_name = full_name
+      if (role !== undefined) patch.role = role
+      const { error } = await supabase.from('users').update(patch).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] })
+      toast.success('User updated')
+    },
+    onError: (err: Error) => {
+      toast.error(err.message)
+    },
+  })
+}
+
+// Both deactivation and reactivation route through the set-user-active edge
+// function so deactivation can ALSO revoke the target's auth session via
+// the service role. Without that step the user keeps their existing JWT
+// until natural expiry — violating PRD §2.2.4 "immediately locked out".
 export function useDeactivateUser() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('users').update({ is_active: false }).eq('id', id)
-      if (error) throw error
+      const { data, error } = await supabase.functions.invoke('set-user-active', {
+        body: { user_id: id, is_active: false },
+      })
+      if (error) throw new Error(error.message ?? 'Deactivate failed')
+      if (data?.error) throw new Error(data.error)
+      return data
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users'] })
       toast.success('User deactivated')
     },
+    onError: (err: Error) => toast.error(err.message),
   })
 }
 
@@ -75,13 +108,18 @@ export function useReactivateUser() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('users').update({ is_active: true }).eq('id', id)
-      if (error) throw error
+      const { data, error } = await supabase.functions.invoke('set-user-active', {
+        body: { user_id: id, is_active: true },
+      })
+      if (error) throw new Error(error.message ?? 'Reactivate failed')
+      if (data?.error) throw new Error(data.error)
+      return data
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users'] })
       toast.success('User reactivated')
     },
+    onError: (err: Error) => toast.error(err.message),
   })
 }
 

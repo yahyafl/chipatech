@@ -72,3 +72,28 @@ export function useUpdateEntity() {
     },
   })
 }
+
+/** Deletes an entity. The schema cascades to its bank_profiles, but trades
+ *  reference entities WITHOUT cascade — so deleting an entity that has
+ *  trades surfaces a Postgres FK violation. We translate that into a clear
+ *  toast instead of leaking the raw error. */
+export function useDeleteEntity() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('entities').delete().eq('id', id)
+      if (error) {
+        if (/foreign key|violates|referenced/i.test(error.message)) {
+          throw new Error('Cannot delete: this entity is referenced by one or more trades. Reassign or delete those trades first.')
+        }
+        throw error
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['entities'] })
+      qc.invalidateQueries({ queryKey: ['bank_profiles'] })
+      toast.success('Entity deleted')
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+}

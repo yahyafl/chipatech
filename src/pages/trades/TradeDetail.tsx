@@ -204,6 +204,9 @@ export default function TradeDetail() {
                 Mark Balance Received
               </button>
             )}
+            {trade.balance_status === 'overdue' && (
+              <div className="mt-3 flex items-center gap-1 text-red-700 text-xs"><AlertTriangle className="h-3.5 w-3.5" />Overdue</div>
+            )}
           </div>
 
           {/* Client Info */}

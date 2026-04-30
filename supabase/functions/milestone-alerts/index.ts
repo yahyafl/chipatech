@@ -10,11 +10,13 @@ const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 // Resend "from" address.
-// - Sandbox mode (default): `onboarding@resend.dev` — works without a verified
-//   domain, but Resend will ONLY deliver to the email registered on the Resend
-//   account. Fine while there's a single super_admin.
-// - Production mode: change to `alerts@<your-verified-domain>` once a domain
-//   is verified at https://resend.com/domains.
+// - Sandbox (current default): `onboarding@resend.dev` — works without a
+//   verified domain, but Resend will ONLY deliver to the email registered
+//   on the Resend account. Fine while testing with a single super_admin.
+// - Production: once chipafarm.com (or another domain) is verified at
+//   https://resend.com/domains, set the RESEND_FROM env var in Supabase
+//   Edge Function secrets to e.g. `TradeMirror Alerts <alerts@chipafarm.com>`.
+//   No code change required — the env var override is read at runtime.
 const FROM_ADDRESS = Deno.env.get('RESEND_FROM') ?? 'TradeMirror Alerts <onboarding@resend.dev>'
 
 async function sendEmail(to: string, subject: string, html: string) {
@@ -106,6 +108,19 @@ function buildEmailHtml(params: {
 </html>`
 }
 
+/** True iff the given timestamp is on a different UTC calendar day than
+ *  `now`. Used to dedupe alerts to at most one per (trade, milestone, day)
+ *  per PRD §11.1 ("repeat DAILY until received"). */
+function alreadySentToday(lastSentAt: string | null, now: Date): boolean {
+  if (!lastSentAt) return false
+  const last = new Date(lastSentAt)
+  return (
+    last.getUTCFullYear() === now.getUTCFullYear() &&
+    last.getUTCMonth() === now.getUTCMonth() &&
+    last.getUTCDate() === now.getUTCDate()
+  )
+}
+
 Deno.serve(async (_req: Request) => {
   try {
     const now = new Date()
@@ -123,13 +138,14 @@ Deno.serve(async (_req: Request) => {
     }
 
     let alertsSent = 0
+    let alertsSkipped = 0
 
     // --- Advance overdue: signing_date + 7 days < now AND status not 'received'.
     // Per spec §11.1 alerts repeat daily until the milestone is marked
     // received, so we include both 'pending' and already-flipped 'overdue'.
     const { data: advanceOverdue } = await supabase
       .from('trades')
-      .select('id, trade_reference, sale_total, signing_date, advance_status, clients(company_name)')
+      .select('id, trade_reference, sale_total, signing_date, advance_status, advance_alert_sent_at, clients(company_name)')
       .in('advance_status', ['pending', 'overdue'])
       .not('signing_date', 'is', null)
       .lt('signing_date', new Date(now.getTime() - 7 * 86400000).toISOString().split('T')[0])
@@ -142,13 +158,18 @@ Deno.serve(async (_req: Request) => {
       const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / 86400000)
       const amountDue = Number(trade.sale_total) * 0.5
 
-      // Mark overdue
+      // Always flip status to overdue (cheap, idempotent) — but only send
+      // the email once per UTC day per spec §11.1.
       await supabase
         .from('trades')
         .update({ advance_status: 'overdue', trade_status: 'overdue' })
         .eq('id', trade.id)
 
-      // Send email
+      if (alreadySentToday(trade.advance_alert_sent_at, now)) {
+        alertsSkipped++
+        continue
+      }
+
       const subject = `TradeMirror Alert: ${clientName} — Advance Overdue`
       const html = buildEmailHtml({
         clientName,
@@ -163,7 +184,13 @@ Deno.serve(async (_req: Request) => {
         await sendEmail(email, subject, html)
       }
 
-      // Log audit
+      // Stamp send time AFTER successful dispatch so a transient cron retry
+      // before this update doesn't accidentally suppress a real send.
+      await supabase
+        .from('trades')
+        .update({ advance_alert_sent_at: now.toISOString() })
+        .eq('id', trade.id)
+
       await supabase.from('audit_logs').insert({
         action: 'milestone_overdue',
         entity_type: 'trade',
@@ -178,7 +205,7 @@ Deno.serve(async (_req: Request) => {
     // Per spec §11.1, alerts repeat daily until the milestone is received.
     const { data: balanceOverdue } = await supabase
       .from('trades')
-      .select('id, trade_reference, sale_total, bol_date, balance_status, clients(company_name)')
+      .select('id, trade_reference, sale_total, bol_date, balance_status, balance_alert_sent_at, clients(company_name)')
       .in('balance_status', ['pending', 'overdue'])
       .not('bol_date', 'is', null)
       .lt('bol_date', new Date(now.getTime() - 7 * 86400000).toISOString().split('T')[0])
@@ -196,6 +223,11 @@ Deno.serve(async (_req: Request) => {
         .update({ balance_status: 'overdue', trade_status: 'overdue' })
         .eq('id', trade.id)
 
+      if (alreadySentToday(trade.balance_alert_sent_at, now)) {
+        alertsSkipped++
+        continue
+      }
+
       const subject = `TradeMirror Alert: ${clientName} — Balance Overdue`
       const html = buildEmailHtml({
         clientName,
@@ -210,6 +242,11 @@ Deno.serve(async (_req: Request) => {
         await sendEmail(email, subject, html)
       }
 
+      await supabase
+        .from('trades')
+        .update({ balance_alert_sent_at: now.toISOString() })
+        .eq('id', trade.id)
+
       await supabase.from('audit_logs').insert({
         action: 'milestone_overdue',
         entity_type: 'trade',
@@ -221,7 +258,7 @@ Deno.serve(async (_req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, alertsSent }),
+      JSON.stringify({ success: true, alertsSent, alertsSkipped }),
       { headers: { 'Content-Type': 'application/json' }, status: 200 }
     )
   } catch (err) {

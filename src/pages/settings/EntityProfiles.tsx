@@ -1,20 +1,23 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Pencil, Building2 } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Modal } from '@/components/ui/Modal'
 import { FormField, Input } from '@/components/ui/FormField'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { useEntities, useCreateEntity, useUpdateEntity } from '@/hooks/useEntities'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { useEntities, useCreateEntity, useUpdateEntity, useDeleteEntity } from '@/hooks/useEntities'
 import { entitySchema, type EntityFormData, type Entity } from '@/types'
 
 export default function EntityProfiles() {
   const { data: entities, isLoading } = useEntities()
   const { mutate: createEntity, isPending: creating } = useCreateEntity()
   const { mutate: updateEntity, isPending: updating } = useUpdateEntity()
+  const { mutate: deleteEntity, isPending: deleting } = useDeleteEntity()
   const [showCreate, setShowCreate] = useState(false)
   const [editEntity, setEditEntity] = useState<Entity | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Entity | null>(null)
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<EntityFormData>({
     resolver: zodResolver(entitySchema) as never,
@@ -42,9 +45,24 @@ export default function EntityProfiles() {
       key: 'actions',
       header: '',
       render: (row) => (
-        <button onClick={(e) => { e.stopPropagation(); setEditEntity(row); reset(row) }} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100">
-          <Pencil className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => { setEditEntity(row); reset(row) }}
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            title="Edit entity"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setDeleteTarget(row)}
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+            title="Delete entity"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       ),
     },
   ]
@@ -53,7 +71,7 @@ export default function EntityProfiles() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-gray-900">Entity Profiles</h2>
-        <button onClick={() => { setShowCreate(true); reset({}) }} className="flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+        <button type="button" onClick={() => { setShowCreate(true); reset({}) }} className="flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
           <Plus className="h-4 w-4" />Add Entity
         </button>
       </div>
@@ -63,8 +81,8 @@ export default function EntityProfiles() {
         title={editEntity ? 'Edit Entity' : 'Add Entity'}
         footer={
           <>
-            <button onClick={() => { setShowCreate(false); setEditEntity(null); reset() }} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-            <button onClick={handleSubmit(onSubmit as never)} disabled={creating || updating} className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
+            <button type="button" onClick={() => { setShowCreate(false); setEditEntity(null); reset() }} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+            <button type="button" onClick={handleSubmit(onSubmit as never)} disabled={creating || updating} className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
               {(creating || updating) && <LoadingSpinner size="sm" />}
               {editEntity ? 'Update' : 'Create'}
             </button>
@@ -95,6 +113,20 @@ export default function EntityProfiles() {
           </FormField>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return
+          deleteEntity(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) })
+        }}
+        title="Delete entity"
+        description={`Permanently delete ${deleteTarget?.name}? This will also delete every banking profile linked to it. If any trade still references this entity, the delete will be blocked.`}
+        confirmLabel="Delete"
+        isLoading={deleting}
+        variant="danger"
+      />
     </div>
   )
 }

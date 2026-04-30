@@ -65,20 +65,30 @@ export function useTrades(filters?: TradeFilters) {
 }
 
 export function useTrade(id: string | undefined) {
-  const cached = id ? readCache<Trade>(`tm_trade_${id}`, CACHE_TTL) : null
+  const { role } = useAuth()
+  // Same role-aware routing as useTrades(): internal users hit
+  // trades_basic so financial columns aren't reachable via the singular
+  // detail query either. Without this, an internal user opening any
+  // /internal/trades/:id/folder would still pull frigo_total/sale_total
+  // from `trades` directly.
+  const isInternal = role === 'internal'
+  const fromTable = isInternal ? 'trades_basic' : 'trades'
+  const selectClause = isInternal ? TRADE_SELECT_BASIC : TRADE_SELECT
+  const cacheKey = id ? `${isInternal ? 'tm_trade_basic_' : 'tm_trade_'}${id}` : null
+  const cached = cacheKey ? readCache<Trade>(cacheKey, CACHE_TTL) : null
 
   return useQuery({
-    queryKey: ['trades', id],
+    queryKey: ['trades', id, isInternal],
     queryFn: async ({ signal }) => {
       if (!id) return null
-      const { data, error } = await supabase
-        .from('trades')
-        .select(TRADE_SELECT)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from(fromTable as any) as any)
+        .select(selectClause)
         .eq('id', id)
         .abortSignal(signal)
         .single()
       if (error) throw error
-      writeCache(`tm_trade_${id}`, data)
+      if (cacheKey) writeCache(cacheKey, data)
       return data as Trade
     },
     enabled: !!id,
