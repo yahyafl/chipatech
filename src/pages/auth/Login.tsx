@@ -17,7 +17,22 @@ export default function Login() {
   const [authError, setAuthError] = useState<string | null>(null)
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Redirect already-authenticated users
+  // Recovery-token rescue: if Supabase's email link landed here instead
+  // of /reset-password (e.g. Site URL mis-configured), forward to the
+  // reset page with the recovery hash intact so the user can finish.
+  useEffect(() => {
+    const hash = window.location.hash
+    const search = window.location.search
+    const isRecovery =
+      hash.includes('type=recovery') ||
+      hash.includes('access_token') ||
+      search.includes('code=') // PKCE flow uses ?code= in query params
+    if (isRecovery) {
+      navigate(`/reset-password${search}${hash}`, { replace: true })
+    }
+  }, [navigate])
+
+  // Redirect already-authenticated users (after the recovery check above)
   useEffect(() => {
     if (user && role) {
       if (role === 'partner') navigate('/partner', { replace: true })

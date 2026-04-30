@@ -79,6 +79,22 @@ function PrefetchOnAuth() {
 
 function RootRedirect() {
   const { role, isLoading } = useAuth()
+
+  // Recovery-token rescue: if Supabase's email link landed at root (because
+  // Site URL was set without /reset-password suffix), forward to the reset
+  // page with the recovery hash intact.
+  if (typeof window !== 'undefined') {
+    const hash = window.location.hash
+    const search = window.location.search
+    const isRecovery =
+      hash.includes('type=recovery') ||
+      hash.includes('access_token') ||
+      search.includes('code=')
+    if (isRecovery) {
+      return <Navigate to={`/reset-password${search}${hash}`} replace />
+    }
+  }
+
   // If role is not yet known and still loading, wait — otherwise redirect immediately
   if (!role && isLoading) return <PageLoader />
   if (role === 'partner') return <Navigate to="/partner" replace />
