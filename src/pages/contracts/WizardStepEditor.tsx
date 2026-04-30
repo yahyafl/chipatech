@@ -89,7 +89,7 @@ export function WizardStepEditor({ initialData, onComplete, onBack }: Props) {
 
       <form className="space-y-5">
         <Section title="A — Entity & Client">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <FormField label="Acting Entity Name" required>
               <Input {...register('entityName')} />
             </FormField>
@@ -161,7 +161,7 @@ export function WizardStepEditor({ initialData, onComplete, onBack }: Props) {
         </Section>
 
         <Section title="C — Cargo Specs (Pure Mirror — Locked)">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <LockedField label="Brand" field="brand" value={watch('brand') || initialData.brand} />
             <LockedField label="Validity" field="validity" value={watch('validity') || initialData.validity} />
             <LockedField label="Temperature" field="temperature" value={watch('temperature') || initialData.temperature} />
@@ -174,7 +174,7 @@ export function WizardStepEditor({ initialData, onComplete, onBack }: Props) {
         </Section>
 
         <Section title="D — Payment Terms">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <FormField label="Prepayment Date">
               <Input {...register('prepaymentDate')} placeholder="APR/27/2026" />
             </FormField>
@@ -202,7 +202,7 @@ export function WizardStepEditor({ initialData, onComplete, onBack }: Props) {
         </Section>
 
         <Section title="F — Banking">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <FormField label="Intermediary Bank">
               <Input {...register('intermediaryBankName')} />
             </FormField>

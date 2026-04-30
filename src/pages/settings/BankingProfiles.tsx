@@ -92,7 +92,7 @@ export default function BankingProfiles() {
           </>
         }
       >
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Entity" error={errors.entity_id} required className="col-span-2">
             <Select error={!!errors.entity_id} {...register('entity_id')}>
               <option value="">Select entity...</option>

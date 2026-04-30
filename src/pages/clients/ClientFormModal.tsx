@@ -63,7 +63,7 @@ export function ClientFormModal({ client, onClose }: ClientFormModalProps) {
         </>
       }
     >
-      <form className="grid grid-cols-2 gap-4">
+      <form className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormField label="Company Name" error={errors.company_name} required className="col-span-2">
           <Input error={!!errors.company_name} {...register('company_name')} />
         </FormField>
