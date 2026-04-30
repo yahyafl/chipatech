@@ -33,11 +33,13 @@ export function WizardStepDownload({ contractData, generatedPdf, sourceFile, onD
 
     async function saveAndDownload() {
       try {
-        // 1. Trigger browser download immediately
         const blob = new Blob([generatedPdf.buffer as ArrayBuffer], { type: 'application/pdf' })
-        downloadBlob(blob, `${contractData.frigoContractRef}-sales-contract.pdf`)
 
-        // 2. Create trade record
+        // 1. Create trade record FIRST so we can name the download with the
+        //    real trade reference (e.g. "CF-2026-031.pdf"). Previously the
+        //    download fired immediately with the Frigo contract reference,
+        //    which is the SOURCE doc's name and confusing in the
+        //    user's downloads folder.
         const { count } = await supabase.from('trades').select('*', { count: 'exact', head: true })
         const year = new Date().getFullYear()
         const num = String((count ?? 0) + 1).padStart(3, '0')
@@ -78,46 +80,67 @@ export function WizardStepDownload({ contractData, generatedPdf, sourceFile, onD
         }).select().single()
 
         if (tradeError) throw tradeError
+        if (!user?.id) throw new Error('Cannot save documents — no authenticated user')
         setTradeId(trade.id)
         setTradeRef(trade.trade_reference)
 
-        // 3. Upload generated PDF to storage
+        // 2. Trigger browser download with the real trade reference as
+        //    the filename. Sanitised against path separators just in case
+        //    the format ever changes.
+        const safeRef = trade.trade_reference.replace(/[\\/]/g, '-')
+        downloadBlob(blob, `${safeRef}.pdf`)
+
+        // 3. Upload BOTH PDFs to storage. Each upload is error-checked
+        //    explicitly because previously a silent storage failure left
+        //    the trade row created but the Trade Folder empty (user
+        //    reported "where did my contract go?" after wizard completed).
         const salesContractPath = `contracts/${trade_reference}/sales_contract.pdf`
-        await supabase.storage.from('trade-documents').upload(salesContractPath, blob, { upsert: true })
+        const { error: salesUploadErr } = await supabase.storage
+          .from('trade-documents')
+          .upload(salesContractPath, blob, { upsert: true, contentType: 'application/pdf' })
+        if (salesUploadErr) throw new Error(`Sales contract upload failed: ${salesUploadErr.message}`)
 
-        // 4. Upload original Frigo contract
         const frigoPath = `contracts/${trade_reference}/frigo_contract.pdf`
-        await supabase.storage.from('trade-documents').upload(frigoPath, sourceFile, { upsert: true })
+        const { error: frigoUploadErr } = await supabase.storage
+          .from('trade-documents')
+          .upload(frigoPath, sourceFile, { upsert: true, contentType: 'application/pdf' })
+        if (frigoUploadErr) throw new Error(`Frigo contract upload failed: ${frigoUploadErr.message}`)
 
-        // 5. Create document records
-        await supabase.from('documents').insert([
+        // 4. Create document records — also error-checked. Without these
+        //    rows in the documents table, useDocuments(tradeId) returns
+        //    [] and the Trade Folder UI shows empty upload slots even
+        //    though the files exist in storage.
+        const { error: docsInsertErr } = await supabase.from('documents').insert([
           {
             trade_id: trade.id,
             document_type: 'frigo_contract' as const,
             file_name: sourceFile.name,
             storage_path: frigoPath,
-            uploaded_by: user?.id ?? '',
+            uploaded_by: user.id,
           },
           {
             trade_id: trade.id,
             document_type: 'sales_contract' as const,
             file_name: `${trade_reference}-sales-contract.pdf`,
             storage_path: salesContractPath,
-            uploaded_by: user?.id ?? '',
+            uploaded_by: user.id,
           },
         ])
+        if (docsInsertErr) throw new Error(`Document records insert failed: ${docsInsertErr.message}`)
 
-        // 6. Log audit
-        await supabase.from('audit_logs').insert({
-          user_id: user?.id,
+        // 5. Log audit (non-fatal — don't block trade-creation success on it)
+        const { error: auditErr } = await supabase.from('audit_logs').insert({
+          user_id: user.id,
           action: 'contract_generated',
           entity_type: 'trade',
           entity_id: trade.id,
           new_value: { trade_reference, client: contractData.clientName },
         })
+        if (auditErr) console.warn('[contract-download] audit log insert failed:', auditErr.message)
 
         setStatus('done')
       } catch (err) {
+        console.error('[contract-download] saveAndDownload error:', err)
         setErrorMsg(err instanceof Error ? err.message : 'Failed to save trade')
         setStatus('error')
       }
