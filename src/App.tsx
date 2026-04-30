@@ -11,6 +11,7 @@ import { RoleGuard } from '@/components/guards/RoleGuard'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PartnerLayout } from '@/components/layout/PartnerLayout'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 // Auth pages
 const Login = lazy(() => import('@/pages/auth/Login'))
@@ -87,10 +88,11 @@ function RootRedirect() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <PrefetchOnAuth />
-        <BrowserRouter>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <PrefetchOnAuth />
+          <BrowserRouter>
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public routes */}
@@ -208,20 +210,21 @@ export default function App() {
 
               {/* 404 */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: { borderRadius: '12px', fontSize: '14px' },
-            success: { iconTheme: { primary: '#16a34a', secondary: '#fff' } },
-            error: { iconTheme: { primary: '#dc2626', secondary: '#fff' } },
-          }}
-        />
-      </AuthProvider>
-      <ReactQueryDevtools initialIsOpen={false} />
-    </QueryClientProvider>
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: { borderRadius: '12px', fontSize: '14px' },
+              success: { iconTheme: { primary: '#16a34a', secondary: '#fff' } },
+              error: { iconTheme: { primary: '#dc2626', secondary: '#fff' } },
+            }}
+          />
+        </AuthProvider>
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }

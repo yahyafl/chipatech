@@ -23,6 +23,35 @@ export function useDocuments(tradeId: string | undefined) {
   })
 }
 
+// Hardening (audit H-2): block oversized files, non-PDFs, and PDFs that
+// fail the %PDF- magic-byte sniff. Also sanitize the filename so we
+// never write attacker-controlled paths into Storage.
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024 // 8 MB ceiling
+
+function sanitizeFileName(name: string): string {
+  // Strip path traversal, control chars, and anything that isn't
+  // alphanumeric / dash / underscore / dot. Keep extension last.
+  const cleaned = name
+    .replace(/[\\/]/g, '_')
+    .replace(/[^\w.\-]/g, '_')
+    .replace(/_+/g, '_')
+    .slice(0, 80)
+  return cleaned || 'document.pdf'
+}
+
+async function assertValidPdf(file: File): Promise<void> {
+  if (file.size === 0) throw new Error('File is empty')
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error(`File exceeds ${MAX_UPLOAD_BYTES / 1024 / 1024} MB limit`)
+  if (file.type && file.type !== 'application/pdf') {
+    throw new Error('Only PDF files are accepted')
+  }
+  // %PDF- magic-byte sniff — covers cases where the MIME type is missing
+  // or spoofed. Real PDFs always start with these 5 bytes.
+  const head = new Uint8Array(await file.slice(0, 5).arrayBuffer())
+  const isPDF = head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46 && head[4] === 0x2D
+  if (!isPDF) throw new Error('File does not look like a real PDF')
+}
+
 export function useUploadDocument() {
   const qc = useQueryClient()
   const { user } = useAuth()
@@ -38,10 +67,14 @@ export function useUploadDocument() {
       documentType: DocumentType
       tradeRef: string
     }) => {
-      const path = `contracts/${tradeRef}/${documentType}_${Date.now()}_${file.name}`
+      await assertValidPdf(file)
+
+      const safeName = sanitizeFileName(file.name)
+      const path = `contracts/${tradeRef}/${documentType}_${Date.now()}_${safeName}`
+
       const { error: uploadError } = await supabase.storage
         .from('trade-documents')
-        .upload(path, file, { upsert: true })
+        .upload(path, file, { upsert: true, contentType: 'application/pdf' })
       if (uploadError) throw uploadError
 
       const { data, error } = await supabase
@@ -49,7 +82,7 @@ export function useUploadDocument() {
         .insert({
           trade_id: tradeId,
           document_type: documentType,
-          file_name: file.name,
+          file_name: safeName,
           storage_path: path,
           uploaded_by: user?.id ?? '',
         })
@@ -61,6 +94,9 @@ export function useUploadDocument() {
     onSuccess: (_, { tradeId }) => {
       qc.invalidateQueries({ queryKey: ['documents', tradeId] })
       toast.success('Document uploaded')
+    },
+    onError: (err: Error) => {
+      toast.error(err.message)
     },
   })
 }

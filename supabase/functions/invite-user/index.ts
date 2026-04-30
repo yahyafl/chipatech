@@ -76,17 +76,34 @@ Deno.serve(async (req: Request) => {
   if (!email || !full_name || !role) {
     return json({ error: 'Missing required fields: email, full_name, role' }, 400)
   }
+  // Server-side email format check (M-6) — frontend may be bypassed.
+  const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!EMAIL_RX.test(email) || email.length > 254) {
+    return json({ error: 'Invalid email format' }, 400)
+  }
+  if (full_name.length < 1 || full_name.length > 120) {
+    return json({ error: 'Invalid full_name length (1-120)' }, 400)
+  }
   if (!['super_admin', 'internal', 'partner'].includes(role)) {
     return json({ error: 'Invalid role' }, 400)
   }
 
-  // Block duplicate invites — return helpful error if email is already a user
+  // Block duplicate invites at BOTH the public.users layer AND the
+  // auth.users layer (H-5) — previously we only checked one, so an
+  // orphaned auth row from an abandoned invite would cause a confusing
+  // failure mid-flow.
   const { data: existing } = await supabaseAdmin
     .from('users')
     .select('id')
     .eq('email', email)
     .maybeSingle()
   if (existing) return json({ error: 'A user with that email already exists' }, 409)
+
+  const { data: authList, error: listErr } = await supabaseAdmin.auth.admin.listUsers()
+  if (listErr) return json({ error: `auth.users lookup failed: ${listErr.message}` }, 500)
+  if (authList?.users.some(u => u.email?.toLowerCase() === email.toLowerCase())) {
+    return json({ error: 'An auth account with that email already exists' }, 409)
+  }
 
   // Origin used in the invite email's "Set password" link
   const origin = req.headers.get('origin') ?? Deno.env.get('APP_URL') ?? ''

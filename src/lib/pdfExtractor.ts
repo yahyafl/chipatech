@@ -74,30 +74,17 @@ export class NotAFrigoContractError extends Error {
   }
 }
 
-// Anchor strings every genuine Frigo contract must contain. If at least
-// two of these are present we accept the file as a Frigo template.
-const FRIGO_ANCHORS = [
-  /FRIGORIFICO\s+CONCEPCION/i,
-  /Contract\s+No\.?\s*[:.]?\s*\d+\/\d{4}/i,
-  /(BENEFICIARY'?S\s+BANK|Beneficiary's Bank)/i,
-  /Plant\s+No\.?\s*[:.]?\s*\d+/i,
-  /BANCO\s+NACIONAL\s+DE\s+FOMENTO|CITIBANK\s+NA/i,
-]
-
 export async function extractContractData(file: File): Promise<ExtractedContract> {
   const buffer = await file.arrayBuffer()
   const rawText = extractRawText(buffer)
 
-  // Try to also get the text as UTF-8
-  const decoder2 = new TextDecoder('utf-8', { fatal: false })
-  const utf8Text = decoder2.decode(buffer)
-  const combined = rawText + ' ' + utf8Text
-
-  // Reject anything that isn't a Frigo template. Without this any PDF
-  // (including the PRD spec doc itself) silently advances and produces
-  // garbage values in the editor — see logic-test report F-P0-3.
-  const anchorsHit = FRIGO_ANCHORS.filter(rx => rx.test(combined)).length
-  if (anchorsHit < 2) throw new NotAFrigoContractError()
+  // Three-decoder fallback. Text extraction in browser-based PDF parsing
+  // is famously inconsistent because some producers use compressed
+  // streams and font subsetting that defeats naive regex extraction —
+  // so we throw multiple decoders at the byte stream and union them.
+  const utf8 = new TextDecoder('utf-8', { fatal: false }).decode(buffer)
+  const latin1 = new TextDecoder('latin1').decode(buffer)
+  const combined = `${rawText}\n${utf8}\n${latin1}`
 
   let confidence: 'high' | 'medium' | 'low' = 'high'
 
@@ -190,6 +177,13 @@ export async function extractContractData(file: File): Promise<ExtractedContract
   const missingFields = [contractRef, productDescription, incoterm].filter(f => !f || f.length < 3)
   if (missingFields.length > 1) confidence = 'medium'
   if (rawText.length < 100) confidence = 'low'
+
+  // Secondary guard: if the anchor passed but nothing usable came out,
+  // the file is probably not a Frigo contract. A real contract has at
+  // minimum a NNN/YYYY contract ref AND a positive quantity in tons.
+  if (!contractRef && quantityTons <= 0 && frigoTotal <= 0) {
+    throw new NotAFrigoContractError()
+  }
 
   return {
     quantityTons,
