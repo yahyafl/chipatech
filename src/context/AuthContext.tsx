@@ -1,7 +1,15 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import toast from 'react-hot-toast'
 import type { User, UserRole } from '@/types'
+
+// Idle-timeout policy. Bank-style: log the user out after IDLE_LIMIT_MS
+// of no clicks/keystrokes/scrolls/touch. We pop a warning toast
+// IDLE_WARNING_MS before the auto-logout so the user can extend by
+// touching the page.
+const IDLE_LIMIT_MS = 30 * 60 * 1000        // 30 minutes
+const IDLE_WARNING_MS = 28 * 60 * 1000      // toast appears 2 min before logout
 
 interface AuthContextType {
   user: User | null
@@ -190,7 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error
   }
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     writeCachedUser(null)
     // Wipe every cached trade/financial blob from localStorage so no
     // financial data lingers after logout (logic-test report F-P2-4).
@@ -204,7 +212,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setRole(null)
     setSession(null)
     await supabase.auth.signOut()
-  }
+  }, [])
+
+  // ── Inactivity auto-logout ─────────────────────────────────────────────
+  // Bank-style: 30 min with no user activity → sign out. A warning toast at
+  // 28 min lets the user extend by touching the page. Only armed while a
+  // user is logged in; on logout/login the timers reset cleanly.
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const warnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const warnToastRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!user) return // not logged in → no timer
+
+    const clearTimers = () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+      if (warnTimerRef.current) clearTimeout(warnTimerRef.current)
+      if (warnToastRef.current) {
+        toast.dismiss(warnToastRef.current)
+        warnToastRef.current = null
+      }
+    }
+
+    const arm = () => {
+      clearTimers()
+      warnTimerRef.current = setTimeout(() => {
+        warnToastRef.current = toast(
+          'You will be signed out in 2 minutes due to inactivity. Move the mouse or press a key to stay signed in.',
+          { duration: 2 * 60 * 1000, icon: '⚠️' },
+        )
+      }, IDLE_WARNING_MS)
+      idleTimerRef.current = setTimeout(() => {
+        toast('Signed out due to inactivity.', { icon: '🔒' })
+        void logout()
+      }, IDLE_LIMIT_MS)
+    }
+
+    // Throttle activity reset to once per second so a busy mousemove
+    // stream doesn't burn cycles re-registering timers.
+    let lastReset = 0
+    const onActivity = () => {
+      const now = Date.now()
+      if (now - lastReset < 1000) return
+      lastReset = now
+      arm()
+    }
+
+    const events: (keyof WindowEventMap)[] = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click']
+    for (const ev of events) window.addEventListener(ev, onActivity, { passive: true })
+
+    arm()
+
+    return () => {
+      for (const ev of events) window.removeEventListener(ev, onActivity)
+      clearTimers()
+    }
+  }, [user, logout])
 
   const forgotPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {

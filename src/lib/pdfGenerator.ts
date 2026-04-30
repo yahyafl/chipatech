@@ -41,16 +41,17 @@ const COORDS = {
   exporterCity:    { x: 74, y: 714.52, w: 270 },
   exporterCountry: { x: 74, y: 703.52, w: 270 },
 
-  // ── Top-right header. Only dateOfIssue is overlaid in production —
-  //    Sales Person / Assistant / Email rows belong to Frigo's internal
-  //    team and stay as-is. Width 160 keeps the block end at 567 so it
-  //    doesn't cross the right-edge page border at x=575.
-  //    salesPerson / salesAssistant / email entries are kept here only so
-  //    the calibration overlay can still draw their boxes for reference.
-  salesPerson:    { x: 407, y: 741.52, w: 160 },
-  salesAssistant: { x: 407, y: 732.52, w: 160 },
-  dateOfIssue:    { x: 407, y: 722.52, w: 160 },
-  email:          { x: 407, y: 701.52, w: 160 },
+  // ── Top-right header. All 4 rows are white-blocked per PRD §7.2 to wipe
+  //    Frigo's internal sales metadata, then we inject company name + new
+  //    contract date. Width 165 ends at x=572 — clear of the x=575 page
+  //    border. Block height stays at default (fontSize+4 = 12) which is
+  //    the max that still leaves the y=752 section border visible.
+  //    salesPerson injects "FRIGORIFICO CONCEPCION S.A." (28 chars, ~127pt
+  //    @ 8pt). Comfortably fits in the 165pt block.
+  salesPerson:    { x: 407, y: 741.52, w: 165 },
+  salesAssistant: { x: 407, y: 732.52, w: 165 },
+  dateOfIssue:    { x: 407, y: 722.52, w: 165 },
+  email:          { x: 407, y: 701.52, w: 165 },
 
   // ── Mid-left client/buyer block. clientName uses a 10pt-tall block
   //    (instead of the default 12) so its top sits at 698.52 — JUST below
@@ -218,7 +219,10 @@ export async function generateMirroredContract(
     // Issue is the mirror's contract date.
     { coord: 'salesPerson',    value: 'FRIGORIFICO CONCEPCION S.A.' },
     { coord: 'salesAssistant', value: '' },
-    { coord: 'dateOfIssue',    value: format(new Date(data.contractDate), 'MMMM dd/yyyy').toUpperCase() },
+    // Parse as LOCAL midnight (`+ T00:00:00`) so a date like "2026-04-28"
+    // doesn't roll back to the 27th in negative UTC timezones — `new
+    // Date('2026-04-28')` alone parses as UTC midnight.
+    { coord: 'dateOfIssue',    value: format(new Date(data.contractDate + 'T00:00:00'), 'MMMM dd/yyyy').toUpperCase() },
     { coord: 'email',          value: '' },
 
     // Client / Buyer — uppercased

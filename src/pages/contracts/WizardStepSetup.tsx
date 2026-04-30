@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useWizardSetupData } from '@/hooks/useWizardSetupData'
-import { FormField, Select } from '@/components/ui/FormField'
+import { FormField, Input, Select } from '@/components/ui/FormField'
 import { calculateFinancials } from '@/lib/utils'
 import type { ExtractedContract, ContractGenerationData } from '@/types'
 import { format } from 'date-fns'
@@ -23,6 +23,10 @@ export function WizardStepSetup({ extracted, onComplete, onBack }: Props) {
   const [bankProfileId, setBankProfileId] = useState('')
   const [clientId,      setClientId]      = useState('')
   const [contactId,     setContactId]     = useState('')
+  // Contract Date controls the "Date of Issue" field on the mirrored PDF
+  // and is the anchor for the prepayment due-date (signing + 7 days).
+  // Default = today; admin can override.
+  const [contractDate,  setContractDate]  = useState(() => format(new Date(), 'yyyy-MM-dd'))
 
   // Pre-select defaults
   useEffect(() => {
@@ -49,7 +53,7 @@ export function WizardStepSetup({ extracted, onComplete, onBack }: Props) {
   }, [contacts, contactId])
 
   const filteredBankProfiles = bankProfiles.filter(b => b.entity_id === entityId)
-  const canProceed = entityId && bankProfileId && clientId && contactId
+  const canProceed = entityId && bankProfileId && clientId && contactId && contractDate
 
   const handleNext = () => {
     const entity      = entities.find(e => e.id === entityId)
@@ -62,8 +66,10 @@ export function WizardStepSetup({ extracted, onComplete, onBack }: Props) {
     const { saleTotal, prepaymentAmount, balanceAmount } = calculateFinancials(
       extracted.quantityTons, saleUnitPrice, extracted.frigoTotal, 0, 0, 0
     )
+    // Prepayment due 7 days after the chosen contract date (not "today").
+    const contractDateObj = new Date(contractDate)
     const prepaymentDate = format(
-      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'MMM/dd/yyyy'
+      new Date(contractDateObj.getTime() + 7 * 24 * 60 * 60 * 1000), 'MMM/dd/yyyy'
     ).toUpperCase()
 
     onComplete({
@@ -92,7 +98,8 @@ export function WizardStepSetup({ extracted, onComplete, onBack }: Props) {
       contactPerson: contact.full_name,
       contactPhone: contact.phone,
       contactEmail: contact.email,
-      contractDate: format(new Date(), 'yyyy-MM-dd'),
+      contractDate, // admin-selected date from the picker below
+
       frigoContractRef: extracted.contractRef,
       quantityTons: extracted.quantityTons,
       productDescription: extracted.productDescription,
@@ -168,6 +175,14 @@ export function WizardStepSetup({ extracted, onComplete, onBack }: Props) {
               </option>
             ))}
           </Select>
+        </FormField>
+
+        <FormField label="Contract Date" required>
+          <Input
+            type="date"
+            value={contractDate}
+            onChange={e => setContractDate(e.target.value)}
+          />
         </FormField>
       </div>
 
