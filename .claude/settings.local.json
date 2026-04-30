@@ -9,7 +9,8 @@
       "Bash(npx create-vite@latest TradeMirrorTemp --template react-ts)",
       "PowerShell($src = \"c:\\\\Users\\\\Dell\\\\OneDrive - Beirut Arab University\\\\Desktop\\\\Chipatech\\\\TradeMirrorTemp\"; $dst = \"c:\\\\Users\\\\Dell\\\\OneDrive - Beirut Arab University\\\\Desktop\\\\Chipatech\"; Get-ChildItem -Path $src -Force | ForEach-Object { Move-Item -Path $_.FullName -Destination $dst -Force }; Remove-Item -Path $src -Recurse -Force; ls $dst)",
       "Bash(npm run *)",
-      "WebSearch"
+      "WebSearch",
+      "Read(//c/Users/Dell/Downloads/**)"
     ]
   }
 }

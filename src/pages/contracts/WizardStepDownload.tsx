@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CheckCircle, FolderOpen, Plus, LayoutDashboard } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
@@ -21,7 +21,16 @@ export function WizardStepDownload({ contractData, generatedPdf, sourceFile, onD
   const [tradeRef, setTradeRef] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
+  // Guards against re-running save+download more than once per mount. React
+  // 18 StrictMode double-mounts effects in dev, and any dependency reference
+  // change (e.g. AuthContext re-emits `user`) used to fire the effect again
+  // — which downloaded the PDF a second time AND inserted a duplicate trade.
+  const hasRunRef = useRef(false)
+
   useEffect(() => {
+    if (hasRunRef.current) return
+    hasRunRef.current = true
+
     async function saveAndDownload() {
       try {
         // 1. Trigger browser download immediately
@@ -115,7 +124,11 @@ export function WizardStepDownload({ contractData, generatedPdf, sourceFile, onD
     }
 
     saveAndDownload()
-  }, [contractData, generatedPdf, sourceFile, user])
+    // Intentionally empty — guarded by hasRunRef. Adding contractData /
+    // generatedPdf / sourceFile / user to deps would re-trigger the
+    // download on any unrelated re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="flex flex-col items-center justify-center py-12 space-y-6 text-center">
